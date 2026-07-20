@@ -146,6 +146,12 @@
   <!-- ============ DASHBOARD ============ -->
   <section class="view active" id="view-dash">
     <div class="chips" id="periodChips"></div>
+    <div class="card" id="briefCard" style="display:none;border-color:#2a4a75;background:linear-gradient(180deg,#0e1d38,var(--panel))">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div id="briefText" style="font-size:16.5px;line-height:1.55;flex:1"></div>
+        <button class="icon-btn" style="width:44px;height:44px;font-size:17px;flex:none" title="Ascolta" onclick="speakOut($('briefText').textContent)">🔊</button>
+      </div>
+    </div>
     <div class="card">
       <div class="kpi-label">Incassato · <span id="periodLabel">oggi</span></div>
       <div class="kpi-big" id="kTotal">—</div>
@@ -241,6 +247,18 @@ async function loadDash(manual){
     $('kOrders').textContent=ord.toLocaleString('it-IT');
     $('kTicket').textContent=ord?EUR(tot/ord):'—';
     $('kStores').textContent=stores.filter(s=>s.val>0).length+'/'+stores.length;
+    // Riepilogo parlante: una frase semplice che spiega i numeri senza dover capire nulla
+    const bc=$('briefCard');
+    if(stores.length&&tot>0){
+      const h=new Date().getHours(), saluto=h<13?'Buongiorno!':h<18?'Buon pomeriggio!':'Buonasera!';
+      const quando=period==='oggi'?'oggi':period==='ieri'?'ieri':period==='7g'?'negli ultimi 7 giorni':'questo mese';
+      const best=stores[0];
+      let ph=`${saluto} ${quando==='oggi'?'Oggi':quando.charAt(0).toUpperCase()+quando.slice(1)} i tuoi negozi hanno incassato ${EUR(tot)} con ${ord} scontrini.`;
+      if(stores.length>1)ph+=` Il migliore è ${best.name} con ${EUR(best.val)}.`;
+      const zero=stores.filter(s=>s.val<=0).length;
+      if(zero===1)ph+=` Un negozio è ancora a zero.`;else if(zero>1)ph+=` ${zero} negozi sono ancora a zero.`;
+      $('briefText').textContent=ph;bc.style.display='block';
+    }else bc.style.display='none';
     const max=Math.max(...stores.map(s=>s.val),1);
     list.innerHTML=stores.length?stores.map((s,i)=>`
       <div class="store">
@@ -369,6 +387,7 @@ function ttsClean(t){
     .replace(/(\d[\d.]*),(\d{2})\s*(?:€|euro)/gi,(m,i,c)=>(c==='00')?`${i} euro`:`${i} euro e ${c.replace(/^0/,'')}`)
     .replace(/€\s*(\d[\d.]*)(?:,(\d{2}))?/g,(m,i,c)=>(!c||c==='00')?`${i} euro`:`${i} euro e ${c.replace(/^0/,'')}`)
     .replace(/(\d),(\d)/g,'$1 virgola $2')
+    .replace(/(\d)\s*€/g,'$1 euro')
     .replace(/%/g,' per cento')
     .replace(/[*_#`>|]/g,' ')
     .replace(/https?:\/\/\S+/g,' ')

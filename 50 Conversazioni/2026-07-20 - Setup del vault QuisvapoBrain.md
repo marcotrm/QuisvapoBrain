@@ -63,6 +63,12 @@ Inoltre `railway-start.sh` ora aggiorna le parti di sistema (.claude, 90 Sistema
 
 - Sopra i 1000px la UI diventa a **due colonne**: dashboard fissa a sinistra (460px), chat sempre visibile a destra, niente tab/bottom-nav, composer ancorato alla colonna chat con scroll indipendente per colonna. Sotto i 1000px resta la versione mobile a tab. Verificato a 1280×800 e 375×812.
 
+## Aggiornamento 7: a prova di capo (feedback "non capisce niente")
+
+- **Login amichevole**: via il dialog Basic del browser ("nome utente e password" spaventava). Ora chi non è autenticato vede una pagina brandizzata Quisvapo con UN solo campo password; il via libera è un cookie (hash SHA-256, HttpOnly, 180 giorni). Il Basic auth resta accettato per compatibilità; le API senza auth rispondono 401 JSON senza WWW-Authenticate. Testato l'intero flusso.
+- **UI in italiano piano**: tab "I miei negozi" / "Chiedi", KPI "Scontrino medio" e "Negozi attivi", messaggio di benvenuto che spiega cosa fare, 5 domande pronte come pulsanti grandi impilati (non più chip nascoste nello scroll), suggerimento in dashboard che rimanda alla chat.
+- Creata **`40 Risorse/Come si usa Jarvis (per il capo).md`**: guida in 5 passi da girare al capo (aggiungi a schermata Home, password una volta, dashboard, domande pronte, voce).
+
 ## Prossimi passi
 
 - [ ] Marco: aprire la cartella SvaPro come vault in Obsidian + plugin (Local REST API porta 27124, Claudian, Homepage → `Home`)
