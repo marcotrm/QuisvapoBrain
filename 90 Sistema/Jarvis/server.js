@@ -97,17 +97,18 @@ async function proxyVault(req, res, url) {
   });
 }
 
-// ---- Gestionale SvaPro: proxy in SOLA LETTURA verso le API dei report ----
+// ---- Gestionale SvaPro: proxy in SOLA LETTURA verso le API ----
 // Gli agenti (e il frontend) chiamano /api/gestionale/<endpoint> e il server inoltra a
-// SVAPRO_API_URL/api/<endpoint> aggiungendo il token. Solo GET, solo endpoint di lettura.
-const GESTIONALE_ALLOW = ['reports/', 'daily-reports', 'stores', 'dashboard'];
+// SVAPRO_API_URL/api/<endpoint> aggiungendo il token. Solo GET; TUTTI gli endpoint di
+// lettura sono consentiti, TRANNE quelli che pur essendo GET eseguono azioni (lista nera).
+const GESTIONALE_DENY = ['run-', 'fix-', 'cleanup', 'wipe', 'delete', 'set-stock', 'migrate', 'reset', 'truncate', 'seed', 'impersonat', 'logout'];
 function proxyGestionale(req, res, rawUrl) {
   const rest = rawUrl.slice('/api/gestionale/'.length);
-  const clean = decodeURIComponent(rest.split('?')[0]).replace(/^\/+/, '');
+  const clean = decodeURIComponent(rest.split('?')[0]).replace(/^\/+/, '').toLowerCase();
   const json = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
   if (req.method !== 'GET') return json(405, { error: 'Solo GET: da qui il gestionale è in sola lettura.' });
-  if (!clean || clean.includes('..') || !GESTIONALE_ALLOW.some(p => clean === p.replace(/\/$/, '') || clean.startsWith(p))) {
-    return json(403, { error: 'Endpoint non consentito. Consentiti: ' + GESTIONALE_ALLOW.join(', ') });
+  if (!clean || clean.includes('..') || GESTIONALE_DENY.some(p => clean.includes(p))) {
+    return json(403, { error: 'Endpoint bloccato dal proxy (esegue azioni, non è di sola lettura).' });
   }
   if (!SVAPRO_API_TOKEN) return json(503, { error: 'SVAPRO_API_TOKEN non impostato: definisci la variabile d\'ambiente con un token API del gestionale (mai nel vault).' });
   fetch(`${SVAPRO_API_URL}/api/${rest}`, {

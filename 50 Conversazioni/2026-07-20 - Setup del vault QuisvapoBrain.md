@@ -46,6 +46,13 @@ Il primo test reale ("quanto ha fatturato Marano?") ha rivelato 3 problemi, tutt
 3. **Niente cronaca**: `buildPrompt` ora impone lo stile "indaga in silenzio, poi SOLO la risposta"; regola aggiunta anche in CLAUDE.md ("Stile delle risposte").
 Inoltre `railway-start.sh` ora aggiorna le parti di sistema (.claude, 90 Sistema, CLAUDE.md, Home.md) nel volume a ogni deploy, preservando le note.
 
+## Aggiornamento 4: UI mobile-first per il capo + indagine "incongruenza"
+
+- Niente ElevenLabs (scelta utente): voce = browser.
+- **Nuova UI di questo Jarvis** (`index.html`, la versione completa è salvata come `index-completa.html`): solo **Dashboard** (incassato oggi/ieri/7gg/mese + classifica negozi da `store-revenue`) e **Chat** (streaming, suggerimenti, dettatura browser, toggle voce), mobile-first con bottom nav. Verificata in viewport mobile.
+- **Indagine incongruenza Afragola 13/07 (€524,50 vs €885,00)**: NON sono dati corrotti — l'agente aveva confrontato `store-revenue` con `revenue-trend`, che misurano cose diverse: revenue-trend conta solo ordini `paid` (store-revenue tutti i non annullati), raggruppa i giorni in **UTC** (vendite serali slittano al giorno dopo) e senza `store_id` somma tutti i negozi. Fix: guida endpoint nel prompt del `data-analyst` (store-revenue = fonte di verità; revenue-trend vietato per fatturato; una chiamata sola → più veloce).
+- **Voce "da assistente"**: STYLE impone la prima riga come frase discorsiva naturale; il frontend legge SOLO quella, senza centesimi ("848,50 €" → "848 euro e 50") e con "per cento".
+
 ## Prossimi passi
 
 - [ ] Marco: aprire la cartella SvaPro come vault in Obsidian + plugin (Local REST API porta 27124, Claudian, Homepage → `Home`)
