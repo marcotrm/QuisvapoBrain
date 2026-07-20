@@ -49,23 +49,28 @@ function permissionArgs() {
 }
 
 function runClaude(agent, message, fresh, res) {
-  const args = ['-p', '--output-format', 'text', ...permissionArgs()];
-  if (!fresh) args.push('--continue');
-  const prompt = buildPrompt(agent, message);
-
-  const child = spawnClaude(args);
-  let out = '', err = '';
-  const timer = setTimeout(() => { child.kill(); }, 10 * 60 * 1000);
-  child.stdout.on('data', d => out += d);
-  child.stderr.on('data', d => err += d);
-  child.on('close', code => {
-    clearTimeout(timer);
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    if (code === 0) res.end(JSON.stringify({ ok: true, reply: out.trim() }));
-    else res.end(JSON.stringify({ ok: false, reply: (err || out || 'Errore sconosciuto').trim() + '\n\nSuggerimento: se è la prima volta, apri un terminale nella cartella del vault ed esegui "claude" una volta per fare il login.' }));
+  gestionaleContext().then(ctx => {
+    const attempt = (useContinue) => {
+      const args = ['-p', '--output-format', 'text', ...permissionArgs()];
+      if (useContinue) args.push('--continue');
+      const child = spawnClaude(args);
+      let out = '', err = '';
+      const timer = setTimeout(() => { child.kill(); }, 10 * 60 * 1000);
+      child.stdout.on('data', d => out += d);
+      child.stderr.on('data', d => err += d);
+      child.on('close', code => {
+        clearTimeout(timer);
+        // "--continue" senza una sessione precedente (container appena partito) fallisce: riprova da zero.
+        if (code !== 0 && useContinue && !out.trim()) return attempt(false);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        if (code === 0) res.end(JSON.stringify({ ok: true, reply: out.trim() }));
+        else res.end(JSON.stringify({ ok: false, reply: (err || out || 'Errore sconosciuto').trim() + '\n\nSuggerimento: se è la prima volta, apri un terminale nella cartella del vault ed esegui "claude" una volta per fare il login.' }));
+      });
+      child.stdin.write(buildPrompt(agent, message, ctx), 'utf8');
+      child.stdin.end();
+    };
+    attempt(!fresh);
   });
-  child.stdin.write(prompt, 'utf8');
-  child.stdin.end();
 }
 
 function vaultApiConfig() {
@@ -252,12 +257,44 @@ function voiceSpeak(req, res) {
 }
 
 // ---- Chat in STREAMING (SSE): il testo arriva token per token mentre Claude lavora ----
-const STYLE = `STILE DELLA RISPOSTA (obbligatorio): prima indaga in silenzio usando gli strumenti, POI scrivi SOLO la risposta finale in italiano. VIETATO scrivere frasi di processo tipo "delego all'agente", "sto recuperando i dati", "ti aggiorno appena ha finito": l'utente deve leggere solo il risultato. La PRIMA riga della risposta è UNA frase discorsiva e naturale, come la direbbe un assistente a voce al suo capo (cifre arrotondate all'euro, niente simboli, niente markdown, tono professionale e diretto); poi riga vuota e i dettagli con numeri precisi e tabella se serve. Sii VELOCE: il minor numero di chiamate/strumenti possibile. Se un dato non è recuperabile, spiega in UNA frase cosa manca e cosa serve.`;
+const STYLE = `STILE DELLA RISPOSTA (obbligatorio): prima indaga in silenzio usando gli strumenti, POI scrivi SOLO la risposta finale in italiano. VIETATO scrivere frasi di processo tipo "delego all'agente", "sto recuperando i dati", "ti aggiorno appena ha finito": l'utente deve leggere solo il risultato. La PRIMA riga della risposta è UNA frase discorsiva e naturale, come la direbbe un assistente a voce al suo capo (cifre arrotondate all'euro, niente simboli, niente markdown, tono professionale e diretto); poi riga vuota e i dettagli con numeri precisi e tabella se serve. Sii VELOCE: il minor numero di chiamate/strumenti possibile. Se un dato non è recuperabile, spiega in UNA frase cosa manca e cosa serve.
+CHI TI PARLA: il titolare dei negozi, NON un tecnico. Le sue domande possono essere vaghe, colloquiali o con errori di battitura: interpretale nel modo più utile SENZA chiedere chiarimenti se esiste un'interpretazione ragionevole (es. "come va?" o "come stiamo andando?" = incassato di oggi per negozio, confrontato con ieri; "quanto abbiamo fatto?" = incassato di oggi). Se scrive il nome di un negozio storpiato, abbinalo al nome più simile nell'elenco dei negozi e rispondi per quello, dichiarandolo ("Per Marano: …"). Non parlare MAI di endpoint, API, token, curl o file: se qualcosa non funziona di' solo "non riesco a leggere questo dato dal gestionale" e cosa può fare lui.`;
 
-function buildPrompt(agent, message) {
+function buildPrompt(agent, message, ctx) {
+  const c = ctx || '';
   return agent && agent !== 'auto'
-    ? `Usa l'agente "${agent}" (subagent definito in .claude/agents/${agent}.md) per questo compito e riporta il suo risultato.\n${STYLE}\n\nDomanda dell'utente:\n${message}`
-    : `${STYLE}\n\n${message}`;
+    ? `Usa l'agente "${agent}" (subagent definito in .claude/agents/${agent}.md) per questo compito e riporta il suo risultato.\n${STYLE}${c}\n\nDomanda dell'utente:\n${message}`
+    : `${STYLE}${c}\n\nDomanda dell'utente:\n${message}`;
+}
+
+// ---- Contesto live: nomi/id dei negozi e incassato di oggi, iniettati nel prompt.
+// Così il modello sa già CHI sono i negozi (niente nomi indovinati) e per le domande
+// più comuni risponde subito senza nemmeno chiamare le API. ----
+let storesCache = { t: 0, list: null };
+function romeToday() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' });
+}
+async function gestionaleContext() {
+  if (!SVAPRO_API_TOKEN) return '';
+  const hdr = { 'Authorization': 'Bearer ' + SVAPRO_API_TOKEN, 'Accept': 'application/json' };
+  let ctx = '';
+  try {
+    if (!storesCache.list || Date.now() - storesCache.t > 10 * 60 * 1000) {
+      const r = await fetch(SVAPRO_API_URL + '/api/stores', { headers: hdr, signal: AbortSignal.timeout(6000) });
+      if (r.ok) { const d = await r.json(); storesCache = { t: Date.now(), list: (d.data || d || []) }; }
+    }
+    const stores = (storesCache.list || []).filter(s => s && s.name).slice(0, 80);
+    if (stores.length) ctx += `Negozi (store_id = nome): ${stores.map(s => `${s.id}=${s.name}`).join(', ')}.\n`;
+  } catch (e) {}
+  try {
+    const today = romeToday();
+    const r = await fetch(`${SVAPRO_API_URL}/api/reports/store-revenue?date_from=${today}&date_to=${today}`, { headers: hdr, signal: AbortSignal.timeout(8000) });
+    if (r.ok) {
+      const rows = (await r.json()).data || [];
+      if (rows.length) ctx += `Incassato di OGGI ${today} per negozio (euro incassati / scontrini): ${rows.map(x => `${x.name}: ${x.collected}€/${x.orders}`).join(', ')}.\n`;
+    }
+  } catch (e) {}
+  return ctx ? `\n\nCONTESTO LIVE dal gestionale (appena verificato: usalo direttamente, per questi dati NON serve chiamare le API; chiamale solo per periodi o dati diversi):\n${ctx}` : '';
 }
 
 function chatStream(req, res) {
@@ -269,44 +306,54 @@ function chatStream(req, res) {
     if (!message || !message.trim()) { res.writeHead(400); return res.end(); }
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
     const send = o => res.write('data: ' + JSON.stringify(o) + '\n\n');
-    const args = ['-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', ...permissionArgs()];
-    if (!fresh) args.push('--continue');
-    const child = spawnClaude(args);
-    let buf = '', full = '', deltaSeen = false, err = '';
-    const timer = setTimeout(() => child.kill(), 15 * 60 * 1000);
-    child.stdout.on('data', d => {
-      buf += d;
-      let i;
-      while ((i = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
-        if (!line) continue;
-        let evt; try { evt = JSON.parse(line); } catch (e) { continue; }
-        if (evt.type === 'stream_event') {
-          const ev = evt.event || {};
-          if (ev.type === 'content_block_delta' && ev.delta && ev.delta.text) {
-            deltaSeen = true; full += ev.delta.text; send({ t: 'delta', text: ev.delta.text });
+    let currentChild = null;
+    gestionaleContext().then(ctx => {
+      const attempt = (useContinue) => {
+        const args = ['-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', ...permissionArgs()];
+        if (useContinue) args.push('--continue');
+        const child = spawnClaude(args);
+        currentChild = child;
+        let buf = '', full = '', deltaSeen = false, err = '';
+        const timer = setTimeout(() => child.kill(), 15 * 60 * 1000);
+        child.stdout.on('data', d => {
+          buf += d;
+          let i;
+          while ((i = buf.indexOf('\n')) >= 0) {
+            const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+            if (!line) continue;
+            let evt; try { evt = JSON.parse(line); } catch (e) { continue; }
+            if (evt.type === 'stream_event') {
+              const ev = evt.event || {};
+              if (ev.type === 'content_block_delta' && ev.delta && ev.delta.text) {
+                deltaSeen = true; full += ev.delta.text; send({ t: 'delta', text: ev.delta.text });
+              }
+            } else if (evt.type === 'assistant' && evt.message && Array.isArray(evt.message.content)) {
+              evt.message.content.filter(c => c.type === 'tool_use').forEach(c => send({ t: 'tool', name: c.name }));
+              const txt = evt.message.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
+              if (txt && !deltaSeen) { full += (full ? '\n' : '') + txt; send({ t: 'msg', text: txt }); }
+              deltaSeen = false;
+            } else if (evt.type === 'result' && evt.result && !full) {
+              full = evt.result;
+            }
           }
-        } else if (evt.type === 'assistant' && evt.message && Array.isArray(evt.message.content)) {
-          evt.message.content.filter(c => c.type === 'tool_use').forEach(c => send({ t: 'tool', name: c.name }));
-          const txt = evt.message.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
-          if (txt && !deltaSeen) { full += (full ? '\n' : '') + txt; send({ t: 'msg', text: txt }); }
-          deltaSeen = false;
-        } else if (evt.type === 'result' && evt.result && !full) {
-          full = evt.result;
-        }
-      }
+        });
+        child.stderr.on('data', d => err += d);
+        child.on('close', code => {
+          clearTimeout(timer);
+          // "--continue" senza una sessione precedente (container appena partito) fallisce
+          // prima di produrre testo: riprova in automatico partendo da zero.
+          if (code !== 0 && useContinue && !full.trim()) return attempt(false);
+          send({ t: 'done', ok: code === 0, full: full || (code !== 0 ? (err.trim() || 'Errore: sei loggato? Esegui "claude" nel terminale una volta.') : '') });
+          res.end();
+        });
+        child.stdin.write(buildPrompt(agent, message.trim(), ctx), 'utf8');
+        child.stdin.end();
+      };
+      attempt(!fresh);
     });
-    child.stderr.on('data', d => err += d);
-    child.on('close', code => {
-      clearTimeout(timer);
-      send({ t: 'done', ok: code === 0, full: full || (code !== 0 ? (err.trim() || 'Errore: sei loggato? Esegui "claude" nel terminale una volta.') : '') });
-      res.end();
-    });
-    child.stdin.write(buildPrompt(agent, message.trim()), 'utf8');
-    child.stdin.end();
     // NB: req.on('close') scatta appena il body è ricevuto (ucciderebbe subito Claude);
     // res 'close' invece segnala la vera disconnessione del client.
-    res.on('close', () => { try { child.kill(); } catch (e) {} });
+    res.on('close', () => { try { if (currentChild) currentChild.kill(); } catch (e) {} });
   });
 }
 

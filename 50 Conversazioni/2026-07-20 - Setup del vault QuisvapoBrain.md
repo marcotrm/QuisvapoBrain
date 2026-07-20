@@ -69,6 +69,10 @@ Inoltre `railway-start.sh` ora aggiorna le parti di sistema (.claude, 90 Sistema
 - **UI in italiano piano**: tab "I miei negozi" / "Chiedi", KPI "Scontrino medio" e "Negozi attivi", messaggio di benvenuto che spiega cosa fare, 5 domande pronte come pulsanti grandi impilati (non più chip nascoste nello scroll), suggerimento in dashboard che rimanda alla chat.
 - Creata **`40 Risorse/Come si usa Jarvis (per il capo).md`**: guida in 5 passi da girare al capo (aggiungi a schermata Home, password una volta, dashboard, domande pronte, voce).
 
+## Aggiornamento 8: riepilogo automatico "che parla"
+
+- Il capo non sa dire cosa non capisce → l'app ora funziona a comprensione zero: appena apre, in cima a "I miei negozi" c'è una **frase in italiano semplice generata dai dati** ("Buongiorno! Oggi i tuoi negozi hanno incassato X € con Y scontrini. Il migliore è Marano con Z €. Un negozio è ancora a zero."), col bottone 🔊 per farsela leggere. Cambia col periodo selezionato, generata client-side (istantanea, zero costi AI). Verificata con dati simulati, voce inclusa.
+
 ## Prossimi passi
 
 - [ ] Marco: aprire la cartella SvaPro come vault in Obsidian + plugin (Local REST API porta 27124, Claudian, Homepage → `Home`)
