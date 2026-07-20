@@ -59,6 +59,10 @@ Inoltre `railway-start.sh` ora aggiorna le parti di sistema (.claude, 90 Sistema
 - Proxy passato da whitelist a **GET-any + lista nera** (bloccati `run-*`, `fix-*`, `cleanup*`, `wipe*`, `delete*`, `set-stock*`, `migrate*`, `reset*`, `seed*`, `impersonat*`: sono GET che eseguono azioni). Testato: lettura inoltrata, endpoint pericolosi 403.
 - Creata **`40 Risorse/API Gestionale (mappa endpoint).md`**: mappa curata degli endpoint (vendite, presenze/ritardi con `attendance/lateness-summary` e `attendance/live`, dipendenti, turni, magazzino, catalogo, clienti, fedeltà, fatture) — serve agli agenti sul server, dove il codice sorgente non c'è. `data-analyst` aggiornato per leggerla prima di scegliere l'endpoint.
 
+## Aggiornamento 6: layout desktop
+
+- Sopra i 1000px la UI diventa a **due colonne**: dashboard fissa a sinistra (460px), chat sempre visibile a destra, niente tab/bottom-nav, composer ancorato alla colonna chat con scroll indipendente per colonna. Sotto i 1000px resta la versione mobile a tab. Verificato a 1280×800 e 375×812.
+
 ## Prossimi passi
 
 - [ ] Marco: aprire la cartella SvaPro come vault in Obsidian + plugin (Local REST API porta 27124, Claudian, Homepage → `Home`)

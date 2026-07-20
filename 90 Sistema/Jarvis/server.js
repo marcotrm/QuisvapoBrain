@@ -4,6 +4,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT) || 8766;
@@ -365,8 +366,17 @@ function isLoopback(req) {
   const a = req.socket.remoteAddress || '';
   return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
 }
+// Login semplice: niente finestra "nome utente/password" del browser (spaventa chi non è tecnico).
+// Chi non è autenticato vede una pagina con UN campo password; il via libera è un cookie con l'hash.
+const KEY_HASH = JARVIS_PASSWORD ? crypto.createHash('sha256').update(JARVIS_PASSWORD).digest('hex') : '';
+function hasAuthCookie(req) {
+  const c = req.headers.cookie || '';
+  const m = c.match(/(?:^|;\s*)jarvis_key=([a-f0-9]{64})/);
+  return !!(m && m[1] === KEY_HASH);
+}
 function checkAuth(req) {
   if (!JARVIS_PASSWORD || isLoopback(req)) return true;
+  if (hasAuthCookie(req)) return true;
   const h = req.headers['authorization'] || '';
   if (!h.startsWith('Basic ')) return false;
   try {
@@ -374,13 +384,68 @@ function checkAuth(req) {
     return dec.slice(dec.indexOf(':') + 1) === JARVIS_PASSWORD;
   } catch (e) { return false; }
 }
+const LOGIN_HTML = `<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Quisvapo · Jarvis</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(900px 500px at 50% -10%,#0b1a33 0%,#060b14 60%);
+    color:#dbe7ff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+  .box{width:min(92vw,360px);text-align:center;padding:20px}
+  .logo{width:64px;height:64px;margin:0 auto 14px;border-radius:50%;border:2px solid #35c8f5;display:grid;place-items:center;
+    font-size:28px;box-shadow:0 0 22px rgba(53,200,245,.5), inset 0 0 12px rgba(53,200,245,.35)}
+  h1{font-size:20px;letter-spacing:.12em;margin:0 0 4px}
+  p{color:#7d90b5;font-size:14px;margin:0 0 22px}
+  input{width:100%;box-sizing:border-box;background:#0b1322;border:1px solid #1c2b47;border-radius:12px;color:#dbe7ff;
+    padding:15px 16px;font-size:18px;text-align:center;outline:none;letter-spacing:.15em}
+  input:focus{border-color:#35c8f5}
+  button{width:100%;margin-top:12px;background:#35c8f5;border:none;border-radius:12px;color:#04121c;font-weight:800;
+    font-size:17px;padding:15px;cursor:pointer;font-family:inherit}
+  .err{color:#ff5d6c;font-size:14px;min-height:20px;margin-top:12px}
+</style></head><body>
+<div class="box">
+  <div class="logo">⚡</div>
+  <h1>QUISVAPO</h1>
+  <p>Il tuo assistente per i negozi</p>
+  <form onsubmit="go(event)">
+    <input id="pwd" type="password" placeholder="Password" autocomplete="current-password" autofocus>
+    <button>ENTRA</button>
+    <div class="err" id="err"></div>
+  </form>
+</div>
+<script>
+async function go(e){e.preventDefault();
+  const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pwd').value})});
+  const d=await r.json().catch(()=>({}));
+  if(d.ok)location.reload();else document.getElementById('err').textContent='Password sbagliata, riprova.';
+}
+</script></body></html>`;
+
+function loginRoute(req, res) {
+  let body = '';
+  req.on('data', d => body += d);
+  req.on('end', () => {
+    let pwd = '';
+    try { pwd = (JSON.parse(body || '{}').password || ''); } catch (e) {}
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    if (JARVIS_PASSWORD && pwd === JARVIS_PASSWORD) {
+      const secure = (req.headers['x-forwarded-proto'] === 'https') ? '; Secure' : '';
+      res.setHeader('Set-Cookie', `jarvis_key=${KEY_HASH}; Path=/; Max-Age=15552000; HttpOnly; SameSite=Lax${secure}`);
+      res.writeHead(200); return res.end('{"ok":true}');
+    }
+    res.writeHead(200); res.end('{"ok":false}');
+  });
+}
 
 const server = http.createServer((req, res) => {
-  if (!checkAuth(req)) {
-    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Jarvis Quisvapo"', 'Content-Type': 'text/plain; charset=utf-8' });
-    return res.end('Autenticazione richiesta');
-  }
   const url = decodeURIComponent(req.url.split('?')[0]);
+  if (url === '/login' && req.method === 'POST') return loginRoute(req, res);
+  if (!checkAuth(req)) {
+    if (req.method === 'GET' && (url === '/' || url === '/index.html')) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(LOGIN_HTML);
+    }
+    res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+    return res.end('{"error":"non autorizzato"}');
+  }
 
   if (url.startsWith('/api/gestionale/')) return proxyGestionale(req, res, req.url);
   if (url === '/api/tts' && req.method === 'POST') return ttsRoute(req, res);

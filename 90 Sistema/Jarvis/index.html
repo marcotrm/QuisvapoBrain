@@ -76,9 +76,9 @@
   .msg th,.msg td{border:1px solid var(--line);padding:5px 8px;text-align:left}
   .msg th{background:var(--panel2)}
   .hint{color:var(--muted);font-size:12.5px;text-align:center;margin:6px 0 2px}
-  .sugg{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
-  .sugg::-webkit-scrollbar{display:none}
-  .sugg .chip{font-size:12.5px;padding:7px 12px}
+  .sugg{display:flex;flex-direction:column;gap:9px;padding:8px 0 2px}
+  .sugg .chip{font-size:14.5px;padding:13px 16px;border-radius:12px;color:var(--text);text-align:left}
+  .sugg .chip::before{content:'💬  ';opacity:.7}
 
   .composer{
     position:fixed;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom));z-index:9;
@@ -138,7 +138,7 @@
 
 <header>
   <div class="logo">⚡</div>
-  <div class="title">QUISVAPO<small>Jarvis · assistente negozi</small></div>
+  <div class="title">QUISVAPO<small>il tuo assistente per i negozi</small></div>
   <div class="dot" id="dot"></div>
 </header>
 
@@ -151,20 +151,22 @@
       <div class="kpi-big" id="kTotal">—</div>
       <div class="kpi-row">
         <div class="mini"><span class="kpi-label">Scontrini</span><b id="kOrders">—</b></div>
-        <div class="mini"><span class="kpi-label">Medio</span><b id="kTicket">—</b></div>
-        <div class="mini"><span class="kpi-label">Negozi</span><b id="kStores">—</b></div>
+        <div class="mini"><span class="kpi-label">Scontrino medio</span><b id="kTicket">—</b></div>
+        <div class="mini"><span class="kpi-label">Negozi attivi</span><b id="kStores">—</b></div>
       </div>
     </div>
     <div class="section-t">Per negozio</div>
     <div class="card" id="storeList"><div class="empty">Carico i dati…</div></div>
     <button class="refresh" onclick="loadDash(true)">↻ Aggiorna</button>
+    <div class="hint" style="margin-top:14px">Vuoi sapere altro? Tocca <b>💬 Chiedi</b> qui sotto e fai la domanda,<br>scrivendo o parlando col microfono 🎙</div>
   </section>
 
   <!-- ============ CHAT ============ -->
   <section class="view" id="view-chat">
     <div id="msgs">
-      <div class="msg bot">Ciao! Chiedimi quello che vuoi sui negozi: fatturati, confronti, prodotti più venduti… Indago nel gestionale e ti rispondo con i numeri.</div>
+      <div class="msg bot">Ciao! 👋 Sono Jarvis, l'assistente dei tuoi negozi.<br><br>Chiedimi quello che vuoi — quanto avete incassato, come va un negozio, cosa si vende di più — e vado a controllare nel gestionale.<br><br><b>Tocca una domanda qui sotto per iniziare</b>, oppure scrivila tu (o dettala col microfono 🎙).</div>
     </div>
+    <div class="hint" style="text-align:left;margin-top:14px">DOMANDE PRONTE — tocca per chiedere:</div>
     <div class="sugg" id="sugg"></div>
   </section>
 </main>
@@ -182,8 +184,8 @@
 </div>
 
 <nav>
-  <button id="tab-dash" class="sel" onclick="show('dash')"><span class="ico">📊</span>Dashboard</button>
-  <button id="tab-chat" onclick="show('chat')"><span class="ico">💬</span>Chat</button>
+  <button id="tab-dash" class="sel" onclick="show('dash')"><span class="ico">📊</span>I miei negozi</button>
+  <button id="tab-chat" onclick="show('chat')"><span class="ico">💬</span>Chiedi</button>
 </nav>
 
 <script>
