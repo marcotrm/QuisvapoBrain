@@ -26,6 +26,13 @@ Marco ha chiesto di replicare il sistema "SecondBrainME" (kit `SETUP-KIT-SecondB
 - Mai inventare cifre di fatturato: se manca la fonte, dire come ottenerla.
 - Il codice SvaPro condivide la cartella col vault: si tocca solo su richiesta esplicita di Marco.
 
+## Aggiornamento (stessa sessione): dati dal gestionale + server Railway
+
+- `server.js` esteso: proxy **`/api/gestionale/<endpoint>`** in SOLA LETTURA verso le API SvaPro (token in env `SVAPRO_API_TOKEN`, whitelist `reports/*`, `daily-reports`, `stores`, `dashboard`, solo GET), **password** via `JARVIS_PASSWORD` (HTTP Basic, loopback esente), ascolto su `0.0.0.0` con `JARVIS_PUBLIC`/Railway, avvio CLI cross-platform (Windows/Linux).
+- `data-analyst` e `CLAUDE.md` aggiornati: la fonte principale dei numeri ora è il proxy (`curl http://127.0.0.1:${PORT:-8766}/api/gestionale/...`); permesso `Bash(curl:*)` aggiunto in settings.
+- Kit deploy in `90 Sistema/Deploy Railway/`: Dockerfile (node + CLI claude), `railway-start.sh` (vault persistente su Volume), `prepara-deploy.ps1` → crea `C:\Users\Utente\Desktop\QuisvapoBrain-deploy` (repo git separato, già committato).
+- Test superati: auth 401/200, proxy inoltra a quisvapo.app, whitelist 403, POST 405.
+
 ## Prossimi passi
 
 - [ ] Marco: installare plugin Obsidian (Local REST API porta dedicata, Claudian, Homepage → `Home`)

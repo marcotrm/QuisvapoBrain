@@ -22,15 +22,17 @@ Obiettivo: il capo apre un **link** (es. `https://quisvapo-brain.up.railway.app`
    powershell -ExecutionPolicy Bypass -File "90 Sistema\Deploy Railway\prepara-deploy.ps1"
    ```
    Crea `C:\Users\Utente\Desktop\QuisvapoBrain-deploy` (solo vault, niente codice SvaPro).
-2. **Repo GitHub privato**: crea `quisvapo-brain` e fai il push (i comandi li stampa lo script).
+2. **Repo GitHub privato**: `https://github.com/marcotrm/QuisvapoBrain` (già collegata come `origin` della cartella di deploy).
 3. **Railway**: New Project → Deploy from GitHub repo → `quisvapo-brain` (rileva il Dockerfile da solo).
 4. **Variabili d'ambiente** sul servizio (Settings → Variables):
    | Variabile | Valore |
    |---|---|
-   | `ANTHROPIC_API_KEY` | chiave API Anthropic (console.anthropic.com) — fa girare gli agenti |
+   | `CLAUDE_CODE_OAUTH_TOKEN` | token dell'abbonamento Claude: sul PC esegui una volta `claude setup-token` e incolla qui il risultato — gli agenti consumano l'abbonamento, non pay-per-use |
    | `JARVIS_PASSWORD` | la password che darai al capo |
    | `SVAPRO_API_TOKEN` | token API (Sanctum) di un utente SvaPro con accesso ai report |
    | `SVAPRO_API_URL` | `https://quisvapo.app` (solo se diverso dal default) |
+
+   (Alternativa pay-per-use: `ANTHROPIC_API_KEY` da console.anthropic.com, eventualmente con `ANTHROPIC_MODEL=claude-haiku-4-5-20251001` per contenere i costi.)
 5. **Volume**: sul servizio → Attach Volume (es. mount `/data`, 1 GB basta). Senza volume funziona lo stesso, ma le note scritte sul server si perdono a ogni redeploy.
 6. **Dominio**: Settings → Networking → Generate Domain. Quel link + password è ciò che dai al capo.
 
@@ -42,7 +44,7 @@ Rilancia `prepara-deploy.ps1` e poi `git -C "C:\Users\Utente\Desktop\QuisvapoBra
 
 - **Voce (Voicebox/Whisper)**: solo in locale — sul server la UI funziona senza voce (gli endpoint rispondono "non disponibile").
 - **Obsidian/REST API**: non esiste sul server; il badge "VAULT" della UI può restare offline — le note le scrivono comunque gli agenti sul filesystem.
-- **Costi**: gli agenti sul server girano con la API key Anthropic (pay-per-use) — ogni domanda del capo consuma token. Tienila d'occhio dalla console Anthropic.
+- **Costi**: con `CLAUDE_CODE_OAUTH_TOKEN` gli agenti consumano i limiti dell'abbonamento Claude di Marco (se il capo chiede molto, i limiti orari/settimanali sono condivisi). Il token va rigenerato se viene revocato o scade (`claude setup-token`).
 - **Sicurezza**: mai committare token/password nel repo di deploy; vivono solo nelle Variables di Railway. Il proxy gestionale è GET-only con whitelist (`reports/*`, `daily-reports`, `stores`, `dashboard`).
 
 ## In locale cambia qualcosa?
