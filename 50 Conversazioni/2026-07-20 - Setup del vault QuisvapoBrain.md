@@ -53,6 +53,12 @@ Inoltre `railway-start.sh` ora aggiorna le parti di sistema (.claude, 90 Sistema
 - **Indagine incongruenza Afragola 13/07 (€524,50 vs €885,00)**: NON sono dati corrotti — l'agente aveva confrontato `store-revenue` con `revenue-trend`, che misurano cose diverse: revenue-trend conta solo ordini `paid` (store-revenue tutti i non annullati), raggruppa i giorni in **UTC** (vendite serali slittano al giorno dopo) e senza `store_id` somma tutti i negozi. Fix: guida endpoint nel prompt del `data-analyst` (store-revenue = fonte di verità; revenue-trend vietato per fatturato; una chiamata sola → più veloce).
 - **Voce "da assistente"**: STYLE impone la prima riga come frase discorsiva naturale; il frontend legge SOLO quella, senza centesimi ("848,50 €" → "848 euro e 50") e con "per cento".
 
+## Aggiornamento 5: proxy aperto a TUTTO il gestionale (in lettura)
+
+- Richiesta: Jarvis deve rispondere a tutto sul gestionale (es. "quanti dipendenti in ritardo oggi?" → prima bloccato dalla whitelist).
+- Proxy passato da whitelist a **GET-any + lista nera** (bloccati `run-*`, `fix-*`, `cleanup*`, `wipe*`, `delete*`, `set-stock*`, `migrate*`, `reset*`, `seed*`, `impersonat*`: sono GET che eseguono azioni). Testato: lettura inoltrata, endpoint pericolosi 403.
+- Creata **`40 Risorse/API Gestionale (mappa endpoint).md`**: mappa curata degli endpoint (vendite, presenze/ritardi con `attendance/lateness-summary` e `attendance/live`, dipendenti, turni, magazzino, catalogo, clienti, fedeltà, fatture) — serve agli agenti sul server, dove il codice sorgente non c'è. `data-analyst` aggiornato per leggerla prima di scegliere l'endpoint.
+
 ## Prossimi passi
 
 - [ ] Marco: aprire la cartella SvaPro come vault in Obsidian + plugin (Local REST API porta 27124, Claudian, Homepage → `Home`)

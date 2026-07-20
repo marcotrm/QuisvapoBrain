@@ -118,6 +118,20 @@
     .kpi-big{font-size:40px}
     .msg{max-width:75%}
   }
+
+  /* ---- Desktop: due colonne, dashboard sempre visibile + chat, niente tab ---- */
+  @media(min-width:1000px){
+    main{display:grid;grid-template-columns:460px 1fr;height:calc(100vh - 57px - env(safe-area-inset-top));overflow:hidden}
+    .view{display:block !important;overflow-y:auto;height:100%;max-width:none;margin:0}
+    #view-dash{border-right:1px solid var(--line);padding:20px 24px 40px}
+    #view-chat{padding:20px 30px 150px}
+    #view-dash .card,#view-dash .chips{max-width:560px}
+    #msgs,.sugg{max-width:900px}
+    nav{display:none}
+    .composer{display:block !important;left:460px;right:0;bottom:0;background:linear-gradient(180deg,transparent,var(--bg) 40%);padding:12px 30px 18px}
+    .composer .inner,.composer .toolbar{max-width:900px;margin-left:0}
+    .composer .toolbar{margin-bottom:6px}
+  }
 </style>
 </head>
 <body>
@@ -183,7 +197,13 @@ function show(v){
   document.querySelectorAll('nav button').forEach(e=>e.classList.remove('sel'));
   $('tab-'+v).classList.add('sel');
   $('composer').classList.toggle('active',v==='chat');
-  if(v==='chat')setTimeout(()=>window.scrollTo(0,document.body.scrollHeight),50);
+  if(v==='chat')setTimeout(()=>scrollBottom(),50);
+}
+/* Scorre in fondo alla chat: su mobile scorre la pagina, su desktop la colonna chat */
+function scrollBottom(smooth){
+  const c=$('view-chat');
+  if(c.scrollHeight>c.clientHeight+4)c.scrollTo({top:c.scrollHeight,behavior:smooth?'smooth':'auto'});
+  window.scrollTo({top:document.body.scrollHeight,behavior:smooth?'smooth':'auto'});
 }
 
 /* ---------- Dashboard ---------- */
@@ -282,7 +302,7 @@ function addMsg(kind,text){
   div.className='msg '+kind;
   div.innerHTML=kind==='user'?esc(text):md(text);
   $('msgs').appendChild(div);
-  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  scrollBottom(true);
   return div;
 }
 async function send(){
@@ -311,7 +331,7 @@ async function send(){
           full+=(ev.text||'');
           if(!live){think.remove();live=addMsg('bot','')}
           live.innerHTML=md(full);
-          window.scrollTo(0,document.body.scrollHeight);
+          scrollBottom();
         }else if(ev.t==='tool'){
           think.textContent='Sto controllando il gestionale… ('+ev.name+')';
         }else if(ev.t==='done'){
