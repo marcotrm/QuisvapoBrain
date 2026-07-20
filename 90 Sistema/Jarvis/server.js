@@ -250,7 +250,7 @@ function voiceSpeak(req, res) {
 }
 
 // ---- Chat in STREAMING (SSE): il testo arriva token per token mentre Claude lavora ----
-const STYLE = `STILE DELLA RISPOSTA (obbligatorio): prima indaga in silenzio usando gli strumenti, POI scrivi SOLO la risposta finale in italiano, diretta, con i numeri in evidenza. VIETATO scrivere frasi di processo tipo "delego all'agente", "sto recuperando i dati", "ti aggiorno appena ha finito": l'utente deve leggere solo il risultato. Se un dato non è recuperabile, spiega in UNA frase cosa manca e cosa serve.`;
+const STYLE = `STILE DELLA RISPOSTA (obbligatorio): prima indaga in silenzio usando gli strumenti, POI scrivi SOLO la risposta finale in italiano. VIETATO scrivere frasi di processo tipo "delego all'agente", "sto recuperando i dati", "ti aggiorno appena ha finito": l'utente deve leggere solo il risultato. La PRIMA riga della risposta è UNA frase discorsiva e naturale, come la direbbe un assistente a voce al suo capo (cifre arrotondate all'euro, niente simboli, niente markdown, tono professionale e diretto); poi riga vuota e i dettagli con numeri precisi e tabella se serve. Sii VELOCE: il minor numero di chiamate/strumenti possibile. Se un dato non è recuperabile, spiega in UNA frase cosa manca e cosa serve.`;
 
 function buildPrompt(agent, message) {
   return agent && agent !== 'auto'

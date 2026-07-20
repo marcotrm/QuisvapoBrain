@@ -1,807 +1,393 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>J.A.R.V.I.S. — SecondBrainME</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060b14">
+<title>Quisvapo · Jarvis</title>
 <style>
   :root{
-    --bg:#050a12; --panel:#0a1322; --panel2:#0d1930; --line:#123152;
-    --cyan:#3ee6ff; --cyan-dim:#1a8fa8; --amber:#ffb347; --green:#4ade80; --red:#f87171;
-    --text:#c8e6f5; --muted:#5f83a0;
+    --bg:#060b14; --panel:#0b1322; --panel2:#0e1830; --line:#1c2b47;
+    --text:#dbe7ff; --muted:#7d90b5; --cyan:#35c8f5; --green:#3ddc84; --red:#ff5d6c; --amber:#ffb454;
+    --radius:14px;
   }
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
-  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-    background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(62,230,255,.012) 2px 4px),
-    radial-gradient(ellipse at 50% -10%,rgba(62,230,255,.08),transparent 60%)}
-  .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh;position:relative;z-index:1}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #0b1a33 0%, var(--bg) 60%);
+    color:var(--text); font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    display:flex; flex-direction:column; overscroll-behavior:none;
+  }
+  header{
+    display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+    border-bottom:1px solid var(--line); background:rgba(6,11,20,.85); backdrop-filter:blur(8px);
+    position:sticky; top:0; z-index:10;
+  }
+  .logo{width:34px;height:34px;border-radius:50%;border:2px solid var(--cyan);display:grid;place-items:center;
+    box-shadow:0 0 14px rgba(53,200,245,.45), inset 0 0 8px rgba(53,200,245,.35); font-size:15px}
+  .title{font-weight:700;letter-spacing:.12em;font-size:15px}
+  .title small{display:block;color:var(--muted);font-weight:400;letter-spacing:.05em;font-size:10.5px;margin-top:1px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);margin-left:auto;flex:none}
+  .dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
 
-  /* ---------- SIDEBAR ---------- */
-  aside{background:linear-gradient(180deg,var(--panel),#070d18);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:6px}
-  .logo{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-  .reactor{width:44px;height:44px;border-radius:50%;position:relative;flex-shrink:0;
-    background:radial-gradient(circle,#eaffff 0 18%,var(--cyan) 30%,#0b3b4d 62%,transparent 70%);
-    box-shadow:0 0 18px rgba(62,230,255,.7),0 0 50px rgba(62,230,255,.25);animation:pulse 2.6s ease-in-out infinite}
-  .reactor::after{content:'';position:absolute;inset:4px;border-radius:50%;border:1px dashed rgba(234,255,255,.6);animation:spin 9s linear infinite}
-  @keyframes pulse{0%,100%{box-shadow:0 0 18px rgba(62,230,255,.7),0 0 50px rgba(62,230,255,.25)}50%{box-shadow:0 0 28px rgba(62,230,255,.95),0 0 70px rgba(62,230,255,.4)}}
-  .reactor.listening{animation-duration:.7s;filter:hue-rotate(140deg) saturate(1.4)}
-  .reactor.thinking{animation-duration:.35s}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .logo h1{font-size:17px;letter-spacing:3px;color:#eaffff;font-weight:600}
-  .logo small{display:block;font-size:9px;letter-spacing:2px;color:var(--muted)}
-  nav button{width:100%;text-align:left;background:none;border:1px solid transparent;color:var(--muted);
-    padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;letter-spacing:1px;transition:.2s;font-family:inherit}
-  nav button:hover{color:var(--cyan);border-color:var(--line)}
-  nav button.active{color:var(--cyan);background:rgba(62,230,255,.07);border-color:var(--cyan-dim);box-shadow:inset 0 0 12px rgba(62,230,255,.06)}
-  .side-bottom{margin-top:auto;font-size:10px;color:var(--muted)}
-  .conn{display:flex;align-items:center;gap:8px;padding:8px 4px;cursor:pointer}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 8px currentColor}
-  .dot.on{background:var(--green)}
+  main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .view{display:none;max-width:640px;margin:0 auto;padding:14px 14px calc(84px + env(safe-area-inset-bottom))}
+  .view.active{display:block}
 
-  /* ---------- MAIN ---------- */
-  main{padding:22px 28px;max-width:1200px}
-  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;border-bottom:1px solid var(--line);padding-bottom:14px}
-  header .title{font-size:20px;letter-spacing:2px;color:#eaffff}
-  header .title span{color:var(--cyan)}
-  .hud{text-align:right;font-size:11px;color:var(--muted);letter-spacing:1px}
-  #clock{font-size:22px;color:var(--cyan);font-variant-numeric:tabular-nums}
-  .grid{display:grid;gap:16px}
-  .cols3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-  .panel{background:linear-gradient(160deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:12px;padding:16px;position:relative;overflow:hidden}
-  .panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.5}
-  .panel h3{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
-  .big{font-size:34px;color:#eaffff}
-  .big small{font-size:12px;color:var(--muted);letter-spacing:1px}
-  .row{display:flex;justify-content:space-between;align-items:center;padding:9px 6px;border-bottom:1px solid rgba(18,49,82,.55);font-size:13px;gap:10px}
-  .row:last-child{border-bottom:none}
-  .badge{font-size:10px;letter-spacing:1px;padding:3px 9px;border-radius:20px;border:1px solid var(--cyan-dim);color:var(--cyan);white-space:nowrap}
-  .badge.warn{border-color:var(--amber);color:var(--amber)}
-  .badge.ok{border-color:var(--green);color:var(--green)}
-  .muted{color:var(--muted);font-size:11px}
-  .section{display:none}.section.visible{display:block}
-  .agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-  .agent-card{cursor:pointer;transition:.2s}
-  .agent-card:hover{transform:translateY(-3px);border-color:var(--cyan-dim);box-shadow:0 6px 24px rgba(62,230,255,.12)}
-  .agent-card .icon{font-size:26px;margin-bottom:8px}
-  .agent-card b{color:#eaffff;letter-spacing:1px;font-size:14px}
-  .agent-card p{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
-  textarea{width:100%;background:#060c16;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:12px;font-family:inherit;font-size:13px;min-height:90px;resize:vertical}
-  textarea:focus,input:focus{outline:none;border-color:var(--cyan-dim)}
-  .btn{background:rgba(62,230,255,.08);border:1px solid var(--cyan-dim);color:var(--cyan);padding:9px 18px;border-radius:8px;cursor:pointer;font-size:12px;letter-spacing:1px;font-family:inherit;transition:.2s}
-  .btn:hover{background:rgba(62,230,255,.16);box-shadow:0 0 14px rgba(62,230,255,.2)}
-  .btn.rec{border-color:var(--red);color:var(--red);animation:pulse 1s infinite}
-  .btn-row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-  input[type=text],input[type=password]{width:100%;background:#060c16;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:10px;font-size:13px;font-family:inherit}
-  label{font-size:11px;letter-spacing:1px;color:var(--muted);display:block;margin:12px 0 5px}
-  .kcol{min-width:170px;flex:1;background:linear-gradient(160deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:10px;padding:10px}
-  .kcol.over{border-color:var(--cyan);box-shadow:0 0 14px rgba(62,230,255,.15)}
-  .kcol h4{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;text-align:center}
-  .kcard{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:8px;font-size:13px;color:#eaffff;cursor:grab}
-  .kcard:active{cursor:grabbing}
-  .kcard .muted{font-size:10px;margin-top:3px}
-  #toast{position:fixed;bottom:24px;right:24px;background:var(--panel2);border:1px solid var(--cyan-dim);color:var(--cyan);padding:12px 20px;border-radius:10px;font-size:13px;opacity:0;transition:.3s;pointer-events:none;z-index:50}
-  #toast.show{opacity:1}
-  a{color:var(--cyan)}
-  .typing{color:var(--cyan);font-size:12px;letter-spacing:1px;min-height:18px;margin-bottom:16px}
-  @media(max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;flex-wrap:wrap;align-items:center}nav{display:flex;flex-wrap:wrap}.side-bottom{margin-top:0}}
+  /* ---- Dashboard ---- */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:none;border:1px solid var(--line);border-radius:999px;padding:8px 15px;font-size:13.5px;color:var(--muted);
+    background:var(--panel);cursor:pointer;user-select:none
+  }
+  .chip.sel{color:#04121c;background:var(--cyan);border-color:var(--cyan);font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:12px}
+  .kpi-big{font-size:34px;font-weight:800;letter-spacing:.01em;margin:2px 0 2px}
+  .kpi-label{color:var(--muted);font-size:12px;letter-spacing:.09em;text-transform:uppercase}
+  .kpi-row{display:flex;gap:10px;margin-top:12px}
+  .kpi-row .mini{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .mini b{display:block;font-size:17px;margin-top:2px}
+  .store{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line)}
+  .store:last-child{border-bottom:none}
+  .rank{width:26px;height:26px;flex:none;border-radius:8px;background:var(--panel2);border:1px solid var(--line);
+    display:grid;place-items:center;font-size:12.5px;color:var(--muted);font-weight:700}
+  .store .nm{font-weight:600;font-size:15px}
+  .store .sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .store .val{margin-left:auto;text-align:right;font-weight:700;font-size:15.5px}
+  .bar{height:4px;border-radius:4px;background:var(--panel2);margin-top:6px;overflow:hidden}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),#7ee0ff);border-radius:4px}
+  .empty{color:var(--muted);text-align:center;padding:26px 10px;font-size:14px;line-height:1.6}
+  .err{color:var(--amber)}
+  .section-t{margin-top:18px;color:var(--muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+  .refresh{margin:16px auto 0;display:block;background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    border-radius:999px;padding:9px 18px;font-size:13px;cursor:pointer}
+
+  /* ---- Chat ---- */
+  #msgs{display:flex;flex-direction:column;gap:10px;min-height:40vh}
+  .msg{max-width:88%;padding:11px 14px;border-radius:16px;font-size:15px;line-height:1.55;word-wrap:break-word;overflow-wrap:break-word}
+  .msg.user{align-self:flex-end;background:#123a55;border:1px solid #1d5c85;border-bottom-right-radius:5px}
+  .msg.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:5px}
+  .msg.bot.think{color:var(--muted);font-style:italic}
+  .msg b,.msg strong{color:#fff}
+  .msg pre{background:#04101f;border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;
+    font-size:12.5px;line-height:1.5;margin:8px 0;font-family:ui-monospace,Consolas,monospace}
+  .msg table{border-collapse:collapse;margin:8px 0;font-size:13px;width:100%}
+  .msg th,.msg td{border:1px solid var(--line);padding:5px 8px;text-align:left}
+  .msg th{background:var(--panel2)}
+  .hint{color:var(--muted);font-size:12.5px;text-align:center;margin:6px 0 2px}
+  .sugg{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+  .sugg::-webkit-scrollbar{display:none}
+  .sugg .chip{font-size:12.5px;padding:7px 12px}
+
+  .composer{
+    position:fixed;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom));z-index:9;
+    background:linear-gradient(180deg,transparent,var(--bg) 30%);padding:10px 12px 8px;display:none
+  }
+  .composer.active{display:block}
+  .composer .inner{max-width:640px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
+  #inp{
+    flex:1;background:var(--panel);border:1px solid var(--line);border-radius:22px;color:var(--text);
+    padding:12px 16px;font-size:16px;font-family:inherit;resize:none;max-height:110px;outline:none
+  }
+  #inp:focus{border-color:var(--cyan)}
+  .icon-btn{
+    width:46px;height:46px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);
+    color:var(--text);font-size:19px;cursor:pointer;display:grid;place-items:center
+  }
+  .icon-btn.primary{background:var(--cyan);border-color:var(--cyan);color:#04121c}
+  .icon-btn.rec{background:var(--red);border-color:var(--red);color:#fff;animation:pulse 1.1s infinite}
+  @keyframes pulse{50%{transform:scale(1.08)}}
+  .toolbar{max-width:640px;margin:0 auto 6px;display:flex;gap:14px;justify-content:flex-end;padding:0 4px}
+  .tool{background:none;border:none;color:var(--muted);font-size:12.5px;cursor:pointer;padding:4px}
+  .tool.on{color:var(--cyan)}
+
+  nav{
+    position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;
+    background:rgba(8,14,26,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom)
+  }
+  nav button{
+    flex:1;background:none;border:none;color:var(--muted);font-family:inherit;font-size:11px;
+    padding:8px 0 9px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px
+  }
+  nav button .ico{font-size:21px}
+  nav button.sel{color:var(--cyan)}
+
+  @media(min-width:700px){
+    .kpi-big{font-size:40px}
+    .msg{max-width:75%}
+  }
 </style>
 </head>
 <body>
-<div class="app">
-  <aside>
-    <div class="logo">
-      <div class="reactor"></div>
-      <div><h1>J.A.R.V.I.S.</h1><small>SECONDBRAIN&nbsp;ME</small></div>
+
+<header>
+  <div class="logo">⚡</div>
+  <div class="title">QUISVAPO<small>Jarvis · assistente negozi</small></div>
+  <div class="dot" id="dot"></div>
+</header>
+
+<main>
+  <!-- ============ DASHBOARD ============ -->
+  <section class="view active" id="view-dash">
+    <div class="chips" id="periodChips"></div>
+    <div class="card">
+      <div class="kpi-label">Incassato · <span id="periodLabel">oggi</span></div>
+      <div class="kpi-big" id="kTotal">—</div>
+      <div class="kpi-row">
+        <div class="mini"><span class="kpi-label">Scontrini</span><b id="kOrders">—</b></div>
+        <div class="mini"><span class="kpi-label">Medio</span><b id="kTicket">—</b></div>
+        <div class="mini"><span class="kpi-label">Negozi</span><b id="kStores">—</b></div>
+      </div>
     </div>
-    <nav id="nav">
-      <button data-s="dashboard" class="active">◈ DASHBOARD</button>
-      <button data-s="chat">◈ CHAT AGENTI</button>
-      <button data-s="clienti">◈ CLIENTI</button>
-      <button data-s="kanban">◈ PIPELINE</button>
-      <button data-s="progetti">◈ PROGETTI</button>
-      <button data-s="task">◈ TASK</button>
-      <button data-s="agenti">◈ AGENTI</button>
-      <button data-s="capture">◈ NOTA VOCALE</button>
-      <button data-s="config">◈ CONFIG</button>
-    </nav>
-    <div class="side-bottom">
-      <div class="conn" onclick="show('config')"><span class="dot" id="connDot"></span><span id="connLabel">VAULT: OFFLINE</span></div>
-      <div class="conn" onclick="wakeToggle()" title="Attivazione vocale a mani libere"><span class="dot" id="wakeDot"></span><span id="wakeLabel">HEY JARVIS: OFF</span></div>
-      <div style="padding:4px">NIA MARKETING · v1.1</div>
+    <div class="section-t">Per negozio</div>
+    <div class="card" id="storeList"><div class="empty">Carico i dati…</div></div>
+    <button class="refresh" onclick="loadDash(true)">↻ Aggiorna</button>
+  </section>
+
+  <!-- ============ CHAT ============ -->
+  <section class="view" id="view-chat">
+    <div id="msgs">
+      <div class="msg bot">Ciao! Chiedimi quello che vuoi sui negozi: fatturati, confronti, prodotti più venduti… Indago nel gestionale e ti rispondo con i numeri.</div>
     </div>
-  </aside>
+    <div class="sugg" id="sugg"></div>
+  </section>
+</main>
 
-  <main>
-    <header>
-      <div class="title" id="pageTitle">CENTRO DI <span>COMANDO</span></div>
-      <div class="hud"><div id="clock">--:--:--</div><div id="dateLine"></div></div>
-    </header>
-    <div class="typing" id="typeLine"></div>
-
-    <!-- DASHBOARD -->
-    <section class="section visible" id="s-dashboard">
-      <div class="grid cols3" style="margin-bottom:16px">
-        <div class="panel"><h3>Clienti</h3><div class="big" id="statClienti">–</div><div class="muted" id="statClientiSub"></div></div>
-        <div class="panel"><h3>Progetti</h3><div class="big" id="statProgetti">–</div><div class="muted" id="statProgettiSub"></div></div>
-        <div class="panel"><h3>Task aperti</h3><div class="big" id="statTask">–</div><div class="muted">nelle note del vault</div></div>
-      </div>
-      <div class="grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
-        <div class="panel"><h3>📊 Progetti per stato</h3><div id="chartProg" class="muted">connetti il vault…</div></div>
-        <div class="panel"><h3>📊 Task aperti per fronte</h3><div id="chartTask" class="muted">connetti il vault…</div></div>
-      </div>
-      <div class="grid" style="grid-template-columns:1fr 1fr">
-        <div class="panel"><h3>Pipeline</h3><div id="pipeList" class="muted">connetti il vault…</div></div>
-        <div class="panel"><h3>Briefing</h3>
-          <div id="briefText" class="muted" style="line-height:1.7;font-size:13px">Configura la connessione al vault per il briefing.</div>
-          <div class="btn-row"><button class="btn" onclick="speakBrief()">🔊 LEGGI BRIEFING</button><button class="btn" onclick="loadVault()">↻ AGGIORNA</button></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CHAT -->
-    <section class="section" id="s-chat">
-      <div class="panel">
-        <h3>Parla col tuo team</h3>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-          <select id="chatAgent" style="background:#060c16;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px;font-family:inherit;font-size:13px">
-            <option value="auto">🧠 Automatico (Claude decide)</option>
-          </select>
-          <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer"><input type="checkbox" id="chatTts" checked> 🔊 leggi le risposte</label>
-          <button class="btn" onclick="newChat()">✦ NUOVA CONVERSAZIONE</button>
-        </div>
-        <div id="chatLog" style="min-height:260px;max-height:50vh;overflow-y:auto;background:#060c16;border:1px solid var(--line);border-radius:8px;padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap"></div>
-        <div style="display:flex;gap:10px;margin-top:10px">
-          <textarea id="chatInput" style="min-height:52px" placeholder="Scrivi o detta un messaggio… (Invio per inviare)"></textarea>
-        </div>
-        <div class="btn-row">
-          <button class="btn" id="chatMicBtn" onclick="toggleMic('chatInput','chatMicBtn')">🎙 DETTA</button>
-          <button class="btn" onclick="sendChat()" id="sendBtn">📡 INVIA</button>
-        </div>
-        <p class="muted" style="margin-top:10px" id="chatHint">Richiede il server Jarvis attivo (doppio click su <code>avvia-jarvis.bat</code>). Gli agenti lavorano davvero sul vault: le risposte possono richiedere 1-3 minuti.</p>
-      </div>
-    </section>
-
-    <!-- CLIENTI -->
-    <section class="section" id="s-clienti"><div class="panel"><h3>Registro clienti</h3><div id="clientiList" class="muted">connetti il vault…</div></div></section>
-
-    <!-- PIPELINE (KANBAN) -->
-    <section class="section" id="s-kanban">
-      <p class="muted" style="margin-bottom:12px">Trascina una scheda in un'altra colonna: lo stato viene scritto direttamente nella nota del vault.</p>
-      <div id="kanbanBoard" style="display:flex;gap:12px;overflow-x:auto;align-items:flex-start">connetti il vault…</div>
-    </section>
-
-    <!-- PROGETTI -->
-    <section class="section" id="s-progetti"><div class="panel"><h3>Progetti</h3><div id="progettiList" class="muted">connetti il vault…</div></div></section>
-
-    <!-- TASK -->
-    <section class="section" id="s-task"><div class="panel"><h3>Task aperti nel vault</h3><div id="taskList" class="muted">connetti il vault…</div></div></section>
-
-    <!-- AGENTI -->
-    <section class="section" id="s-agenti">
-      <p class="muted" style="margin-bottom:14px">Il tuo team. Clicca un agente per copiare il comando da incollare in <b>Claudian</b> (pannello Claude dentro Obsidian) o in Claude Code.</p>
-      <div class="agents-grid" id="agentsGrid"></div>
-    </section>
-
-    <!-- CAPTURE -->
-    <section class="section" id="s-capture">
-      <div class="panel">
-        <h3>Cattura tutto (scrivi o detta)</h3>
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-          <select id="captureType" style="background:#060c16;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px;font-family:inherit;font-size:13px">
-            <option value="nota">📥 Nota veloce → 00 Inbox</option>
-            <option value="idea">💡 Idea → 70 Idee</option>
-          </select>
-        </div>
-        <textarea id="captureText" placeholder="Scrivi qui, oppure premi DETTA e parla… (anche l'idea più assurda: si salva TUTTO)"></textarea>
-        <div class="btn-row">
-          <button class="btn" id="micBtn" onclick="toggleMic('captureText','micBtn')">🎙 DETTA</button>
-          <button class="btn" onclick="saveCapture()">💾 SALVA NEL VAULT</button>
-          <button class="btn" onclick="speak(document.getElementById('captureText').value)">🔊 RILEGGI</button>
-        </div>
-        <p class="muted" style="margin-top:10px">La nota viene salvata come file in <code>00 Inbox/</code> tramite la Local REST API. Gli agenti la smisteranno.</p>
-      </div>
-    </section>
-
-    <!-- CONFIG -->
-    <section class="section" id="s-config">
-      <div class="panel" style="max-width:640px">
-        <h3>Connessione al vault (plugin: Local REST API)</h3>
-        <p class="muted" style="margin-bottom:10px">ℹ️ Se avvii Jarvis con <code>avvia-jarvis.bat</code> la connessione è <b>automatica</b> (il server legge la chiave dal plugin): questa pagina serve solo come ripiego se apri index.html direttamente.</p>
-        <ol class="muted" style="line-height:2;padding-left:18px;font-size:12px">
-          <li>In Obsidian → Impostazioni → <b>Local REST API</b>: copia la <b>API Key</b></li>
-          <li>Consigliato: attiva "<b>Enable Non-encrypted (HTTP) Server</b>" (porta 27123) — evita problemi di certificato</li>
-          <li>Se usi HTTPS (27124): apri prima <a href="https://127.0.0.1:27124/" target="_blank">https://127.0.0.1:27124</a> e accetta il certificato</li>
-        </ol>
-        <label>URL BASE</label>
-        <input type="text" id="cfgUrl" placeholder="http://127.0.0.1:27123">
-        <label>API KEY</label>
-        <input type="password" id="cfgKey" placeholder="incolla la API key">
-        <div class="btn-row"><button class="btn" onclick="saveCfg()">SALVA E CONNETTI</button><button class="btn" onclick="testConn(true)">TEST</button></div>
-        <p class="muted" style="margin-top:12px">La chiave resta solo nel tuo browser (localStorage), su questo PC.</p>
-      </div>
-      <div class="panel" style="max-width:640px;margin-top:16px">
-        <h3>🎙 Voce (Voicebox)</h3>
-        <p class="muted" id="vbStatus" style="line-height:1.7">controllo…</p>
-        <label>PROFILO VOCALE</label>
-        <select id="vbProfile" onchange="vb.profile=this.value;localStorage.setItem('vbProfile',this.value);speak('Ciao Marco, questa è la mia nuova voce.')" style="width:100%;background:#060c16;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:10px;font-family:inherit;font-size:13px"></select>
-        <div class="btn-row"><button class="btn" onclick="detectVoicebox().then(()=>toast(vb.available?'Voicebox attivo ✔':'Voicebox non trovato'))">↻ RICONTROLLA</button><button class="btn" onclick="speak('Test della voce di Jarvis. Sistemi operativi.')">🔊 PROVA VOCE</button></div>
-        <p class="muted" style="margin-top:10px">Con Voicebox aperto la voce diventa neurale (puoi anche clonarne una dedicata a Jarvis). Senza, uso la voce del browser.</p>
-      </div>
-    </section>
-  </main>
+<div class="composer" id="composer">
+  <div class="toolbar">
+    <button class="tool" id="voiceTgl" onclick="toggleVoice()">🔊 Voce</button>
+    <button class="tool" onclick="newConv()">✚ Nuova conversazione</button>
+  </div>
+  <div class="inner">
+    <button class="icon-btn" id="micBtn" onclick="mic()">🎙</button>
+    <textarea id="inp" rows="1" placeholder="Scrivi o detta la domanda…"></textarea>
+    <button class="icon-btn primary" id="sendBtn" onclick="send()">➤</button>
+  </div>
 </div>
-<div id="toast"></div>
+
+<nav>
+  <button id="tab-dash" class="sel" onclick="show('dash')"><span class="ico">📊</span>Dashboard</button>
+  <button id="tab-chat" onclick="show('chat')"><span class="ico">💬</span>Chat</button>
+</nav>
 
 <script>
-/* ================= STATE ================= */
-const AGENTS=[
- {id:'ceo',icon:'👑',name:'CEO',desc:'Strategia, priorità, decisioni, piani settimanali'},
- {id:'dev',icon:'💻',name:'DEV',desc:'Codice: Laravel, React, WordPress, Node'},
- {id:'design',icon:'🎨',name:'DESIGN',desc:'UI/UX, brand, design system'},
- {id:'marketing',icon:'📣',name:'MARKETING',desc:'Copy, funnel, email, lanci, SEO'},
- {id:'cmo',icon:'🧭',name:'CMO',desc:'Posizionamento, pricing, canali, budget'},
- {id:'social',icon:'📱',name:'SOCIAL',desc:'Calendari editoriali, post, reel'},
- {id:'sales',icon:'🤝',name:'SALES',desc:'Pipeline, preventivi, follow-up'},
- {id:'finance',icon:'💰',name:'FINANCE',desc:'Prezzi, fatture, cashflow, margini'},
- {id:'ops',icon:'⚙️',name:'OPS',desc:'Processi, checklist, automazioni, ordine'},
- {id:'legal',icon:'⚖️',name:'LEGAL',desc:'Contratti, GDPR, privacy, normative'},
- {id:'research',icon:'🔬',name:'RESEARCH',desc:'Ricerche approfondite con fonti'},
- {id:'data-analyst',icon:'📊',name:'DATA',desc:'Analisi CSV/Excel, pulizia dati, report'}
-];
-let cfg=JSON.parse(localStorage.getItem('jarvisCfg')||'{"url":"http://127.0.0.1:27123","key":""}');
-let clienti=[],progetti=[],tasks=[];
-
-/* ================= UI BASE ================= */
 const $=id=>document.getElementById(id);
-function show(s){
-  document.querySelectorAll('.section').forEach(x=>x.classList.remove('visible'));
-  $('s-'+s).classList.add('visible');
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.s===s));
-  const titles={dashboard:'CENTRO DI <span>COMANDO</span>',chat:'CHAT <span>AGENTI</span>',kanban:'PIPELINE <span>CLIENTI</span>',clienti:'REGISTRO <span>CLIENTI</span>',progetti:'<span>PROGETTI</span>',task:'<span>TASK</span>',agenti:'IL <span>TEAM</span>',capture:'NOTA <span>VOCALE</span>',config:'<span>CONFIG</span>'};
-  $('pageTitle').innerHTML=titles[s]||s;
-}
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.s));
-function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
-setInterval(()=>{const d=new Date();$('clock').textContent=d.toLocaleTimeString('it-IT');$('dateLine').textContent=d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase()},500);
-(function type(msg,i=0){const el=$('typeLine');if(i===0)el.textContent='';if(i<msg.length){el.textContent+=msg[i];setTimeout(()=>type(msg,i+1),28)}})('Buongiorno. Sistemi online. In cosa posso esserti utile?');
+const EUR=n=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:(Math.abs(n)>=1000?0:2)}).format(n||0);
 
-/* agents grid */
-$('agentsGrid').innerHTML=AGENTS.map(a=>`<div class="panel agent-card" onclick="useAgent('${a.id}')"><div class="icon">${a.icon}</div><b>${a.name}</b><p>${a.desc}</p></div>`).join('');
-function useAgent(id){
-  const a=AGENTS.find(x=>x.id===id);
-  const cmd=`Usa l'agente ${id} per: `;
-  navigator.clipboard.writeText(cmd).then(()=>toast(`Comando copiato: apri Claudian e incolla → "${cmd}…"`));
-  speak(`Agente ${a.name} pronto. Comando copiato negli appunti.`);
+/* ---------- Navigazione ---------- */
+function show(v){
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+  $('view-'+v).classList.add('active');
+  document.querySelectorAll('nav button').forEach(e=>e.classList.remove('sel'));
+  $('tab-'+v).classList.add('sel');
+  $('composer').classList.toggle('active',v==='chat');
+  if(v==='chat')setTimeout(()=>window.scrollTo(0,document.body.scrollHeight),50);
 }
 
-/* ================= REST API =================
-   Modalità 1 (automatica): la pagina è servita da server.js → proxy /api/vault/* , nessuna chiave richiesta.
-   Modalità 2 (manuale): pagina aperta da file:// → serve URL+chiave in CONFIG. */
-let proxyOk=false;
-async function detectProxy(){try{const r=await fetch('/api/vault/');proxyOk=r.ok}catch(e){proxyOk=false}}
-async function api(path,opts={}){
-  const r=proxyOk
-    ? await fetch('/api'+path,opts)
-    : await fetch(cfg.url+path,{...opts,headers:{'Authorization':'Bearer '+cfg.key,...(opts.headers||{})}});
-  if(!r.ok)throw new Error(r.status);
-  return r;
+/* ---------- Dashboard ---------- */
+const fmtD=d=>d.toISOString().slice(0,10);
+function ranges(){
+  const t=new Date(), y=new Date(Date.now()-864e5), w=new Date(Date.now()-6*864e5);
+  const m=new Date(t.getFullYear(),t.getMonth(),1);
+  return [
+    {k:'oggi',    label:'Oggi',        from:fmtD(t), to:fmtD(t)},
+    {k:'ieri',    label:'Ieri',        from:fmtD(y), to:fmtD(y)},
+    {k:'7g',      label:'7 giorni',    from:fmtD(w), to:fmtD(t)},
+    {k:'mese',    label:'Questo mese', from:fmtD(m), to:fmtD(t)},
+  ];
 }
-async function testConn(loud){
-  await detectProxy();
-  try{await api('/vault/');$('connDot').classList.add('on');$('connLabel').textContent=proxyOk?'VAULT: ONLINE (AUTO)':'VAULT: ONLINE';if(loud)toast('Connesso al vault ✔');return true}
-  catch(e){$('connDot').classList.remove('on');$('connLabel').textContent='VAULT: OFFLINE';if(loud)toast('Connessione fallita: Obsidian è aperto?');return false}
+let period='oggi';
+function drawChips(){
+  $('periodChips').innerHTML=ranges().map(r=>
+    `<div class="chip ${r.k===period?'sel':''}" onclick="period='${r.k}';drawChips();loadDash()">${r.label}</div>`).join('');
 }
-function saveCfg(){cfg={url:$('cfgUrl').value.trim().replace(/\/$/,''),key:$('cfgKey').value.trim()};localStorage.setItem('jarvisCfg',JSON.stringify(cfg));loadVault()}
-$('cfgUrl').value=cfg.url;$('cfgKey').value=cfg.key;
-
-async function listDir(p){try{const r=await api('/vault/'+encodeURIComponent(p).replaceAll('%2F','/'));return(await r.json()).files||[]}catch(e){return[]}}
-async function readNote(p){try{const r=await api('/vault/'+encodeURI(p));return await r.text()}catch(e){return null}}
-function fm(text){ // parse frontmatter + open tasks
-  const out={meta:{},tasks:[]};if(!text)return out;
-  const m=text.match(/^---\n([\s\S]*?)\n---/);
-  if(m)m[1].split('\n').forEach(l=>{const i=l.indexOf(':');if(i>0)out.meta[l.slice(0,i).trim()]=l.slice(i+1).trim().replace(/^["']|["']$/g,'')});
-  (text.match(/^- \[ \] .+$/gm)||[]).forEach(t=>out.tasks.push(t.replace('- [ ]','').trim()));
-  return out;
-}
-
-async function loadVault(){
-  if(!await testConn(false)){toast('Vault offline — Obsidian è aperto?');return}
-  clienti=[];progetti=[];tasks=[];
-  // clienti: 10 Clienti/<Nome>/<Nome>.md
-  for(const d of await listDir('10 Clienti/')){
-    if(!d.endsWith('/'))continue;
-    const name=d.slice(0,-1);
-    const txt=await readNote(`10 Clienti/${name}/${name}.md`);
-    const p=fm(txt);
-    clienti.push({name,status:p.meta.status||'?',tasks:p.tasks});
-    p.tasks.forEach(t=>tasks.push({src:name,t}));
-  }
-  // progetti: 20 Progetti/*.md
-  for(const f of await listDir('20 Progetti/')){
-    if(!f.endsWith('.md'))continue;
-    const txt=await readNote('20 Progetti/'+f);
-    const p=fm(txt);
-    const name=f.replace('.md','');
-    progetti.push({name,status:p.meta.status||'?',cliente:(p.meta.cliente||'').replace(/[\[\]"]/g,'')});
-    p.tasks.forEach(t=>tasks.push({src:name,t}));
-  }
-  render();toast('Dati vault aggiornati');
-}
-
-function badge(s){const warn=['da-qualificare','go-live','?'].includes(s);const ok=['attivo','in-corso'].includes(s);return`<span class="badge ${warn?'warn':ok?'ok':''}">${s.toUpperCase()}</span>`}
-function render(){
-  $('statClienti').textContent=clienti.length;
-  $('statClientiSub').textContent=clienti.filter(c=>c.status==='attivo').length+' attivi';
-  $('statProgetti').textContent=progetti.length;
-  $('statProgettiSub').textContent=progetti.filter(p=>['in-corso','go-live'].includes(p.status)).length+' in corso';
-  $('statTask').textContent=tasks.length;
-  $('pipeList').innerHTML=clienti.map(c=>`<div class="row"><span>${c.name}</span>${badge(c.status)}</div>`).join('')||'<i>vuoto</i>';
-  $('clientiList').innerHTML=clienti.map(c=>`<div class="row"><span><b style="color:#eaffff">${c.name}</b><br><span class="muted">${c.tasks.length} task aperti</span></span>${badge(c.status)}</div>`).join('')||'<i>vuoto</i>';
-  $('progettiList').innerHTML=progetti.map(p=>`<div class="row"><span><b style="color:#eaffff">${p.name}</b><br><span class="muted">${p.cliente}</span></span>${badge(p.status)}</div>`).join('')||'<i>vuoto</i>';
-  $('taskList').innerHTML=tasks.map(x=>`<div class="row"><span>☐ ${x.t}</span><span class="muted">${x.src}</span></div>`).join('')||'<i>nessun task aperto</i>';
-  renderKanban();renderCharts();
-  const brief=`Situazione: ${clienti.length} clienti (${clienti.filter(c=>c.status==='attivo').length} attivi), ${progetti.length} progetti, ${tasks.length} task aperti. `+
-    (progetti.filter(p=>p.status==='go-live').map(p=>`Attenzione: ${p.name} è in fase go-live. `).join(''))+
-    (clienti.filter(c=>c.status==='da-qualificare').length?`Da qualificare: ${clienti.filter(c=>c.status==='da-qualificare').map(c=>c.name).join(', ')}.`:'');
-  $('briefText').textContent=brief;
-}
-
-/* ================= KANBAN PIPELINE (drag & drop → frontmatter) ================= */
-const KSTATI=['da-qualificare','contattato','proposta','attivo','in-pausa','perso'];
-function renderKanban(){
-  const board=$('kanbanBoard');if(!board)return;
-  const stati=[...new Set([...KSTATI,...clienti.map(c=>c.status)])].filter(s=>s&&s!=='?');
-  board.innerHTML=stati.map(s=>
-    `<div class="kcol" data-s="${s}" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="kanbanDrop(event,'${s}')">
-      <h4>${s.replace(/-/g,' ')}</h4>
-      ${clienti.filter(c=>c.status===s).map(c=>
-        `<div class="kcard" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${c.name.replace(/'/g,"\\'")}')">${c.name}<div class="muted">${c.tasks.length} task aperti</div></div>`).join('')||'<div class="muted" style="text-align:center;font-size:11px">—</div>'}
-    </div>`).join('');
-}
-async function kanbanDrop(ev,newStatus){
-  ev.preventDefault();
-  document.querySelectorAll('.kcol').forEach(k=>k.classList.remove('over'));
-  const name=ev.dataTransfer.getData('text/plain');if(!name)return;
-  const cl=clienti.find(c=>c.name===name);
-  if(cl&&cl.status===newStatus)return;
+async function loadDash(manual){
+  const r=ranges().find(x=>x.k===period);
+  $('periodLabel').textContent=r.label.toLowerCase();
+  const list=$('storeList');
+  if(manual)list.innerHTML='<div class="empty">Carico i dati…</div>';
   try{
-    const path=`10 Clienti/${name}/${name}.md`;
-    const txt=await readNote(path);if(txt===null)throw new Error('nota non trovata');
-    const nu=/^status:.*$/m.test(txt)?txt.replace(/^status:.*$/m,'status: '+newStatus):txt.replace(/^---\n/, '---\nstatus: '+newStatus+'\n');
-    await api('/vault/'+encodeURI(path),{method:'PUT',headers:{'Content-Type':'text/markdown'},body:nu});
-    toast(`${name} → ${newStatus} ✔ (nota aggiornata)`);
-    await loadVault();
-  }catch(e){toast('Errore aggiornamento stato: '+e.message)}
+    const res=await fetch(`/api/gestionale/reports/store-revenue?date_from=${r.from}&date_to=${r.to}`);
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.error||d.message||('HTTP '+res.status));
+    const stores=(d.data||[]).map(s=>({name:s.name,val:(s.collected??s.revenue)||0,orders:s.orders||0,ticket:s.avg_ticket||0}))
+      .sort((a,b)=>b.val-a.val);
+    const tot=stores.reduce((a,s)=>a+s.val,0), ord=stores.reduce((a,s)=>a+s.orders,0);
+    $('kTotal').textContent=EUR(tot);
+    $('kOrders').textContent=ord.toLocaleString('it-IT');
+    $('kTicket').textContent=ord?EUR(tot/ord):'—';
+    $('kStores').textContent=stores.filter(s=>s.val>0).length+'/'+stores.length;
+    const max=Math.max(...stores.map(s=>s.val),1);
+    list.innerHTML=stores.length?stores.map((s,i)=>`
+      <div class="store">
+        <div class="rank">${i+1}</div>
+        <div style="flex:1;min-width:0">
+          <div class="nm">${s.name}</div>
+          <div class="sub">${s.orders} scontrini · medio ${EUR(s.ticket)}</div>
+          <div class="bar"><i style="width:${(s.val/max*100).toFixed(1)}%"></i></div>
+        </div>
+        <div class="val">${EUR(s.val)}</div>
+      </div>`).join('')
+      :'<div class="empty">Nessuna vendita nel periodo.</div>';
+  }catch(e){
+    $('kTotal').textContent='—';$('kOrders').textContent='—';$('kTicket').textContent='—';$('kStores').textContent='—';
+    list.innerHTML=`<div class="empty err">Dati del gestionale non disponibili.<br><small>${String(e.message||e)}</small><br><br>Puoi comunque chiedere in chat 👇</div>`;
+  }
 }
 
-/* ================= GRAFICI (barre, zero librerie) ================= */
-function bars(el,data){
-  if(!el)return;
-  if(!data.length){el.innerHTML='<i class="muted">nessun dato</i>';return}
-  const max=Math.max(1,...data.map(d=>d[1]));
-  el.innerHTML=data.map(([l,v])=>
-    `<div style="display:flex;align-items:center;gap:8px;margin:5px 0">
-      <span style="width:150px;font-size:11px;color:var(--muted);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${l}">${l}</span>
-      <div style="flex:1;background:#060c16;border-radius:4px;overflow:hidden"><div style="width:${Math.max(4,(v/max*100)).toFixed(0)}%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));height:13px;border-radius:4px"></div></div>
-      <span style="font-size:11px;color:#eaffff;width:22px">${v}</span>
-    </div>`).join('');
+/* ---------- Stato server ---------- */
+async function ping(){try{const r=await fetch('/api/agents');$('dot').classList.toggle('on',r.ok)}catch(e){$('dot').classList.remove('on')}}
+
+/* ---------- Chat ---------- */
+const SUGG=[
+  'Quanto abbiamo incassato oggi, negozio per negozio?',
+  'Quanto ha fatturato Marano in questi giorni?',
+  'Confronta i negozi negli ultimi 7 giorni',
+  'Top 10 prodotti più venduti del mese',
+  'Che margini abbiamo questo mese?'
+];
+$('sugg').innerHTML=SUGG.map(s=>`<div class="chip" onclick="$('inp').value=this.textContent;send()">${s}</div>`).join('');
+
+let freshNext=true, sending=false;
+function newConv(){
+  freshNext=true;
+  addMsg('bot','Nuova conversazione: ricomincio da zero. Dimmi pure.');
 }
-function countBy(arr,key){const m={};arr.forEach(x=>{const k=x[key]||'?';m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1])}
-function renderCharts(){
-  bars($('chartProg'),countBy(progetti,'status'));
-  bars($('chartTask'),countBy(tasks,'src').slice(0,8));
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function md(s){
+  // markdown leggero: tabelle, grassetto, corsivo, codice, elenchi
+  let h=esc(s);
+  const lines=h.split('\n');let out=[],tbl=[];
+  const flush=()=>{if(!tbl.length)return;
+    const rows=tbl.filter(l=>!/^\s*\|?[\s:|-]+\|?\s*$/.test(l)).map(l=>l.replace(/^\||\|$/g,'').split('|'));
+    if(rows.length){out.push('<table>'+rows.map((r,i)=>'<tr>'+r.map(c=>`<t${i?'d':'h'}>${c.trim()}</t${i?'d':'h'}>`).join('')+'</tr>').join('')+'</table>')}
+    tbl=[]};
+  for(const l of lines){
+    if(l.includes('|')&&l.trim().length>1){tbl.push(l);continue}
+    flush();out.push(l)}
+  flush();h=out.join('\n');
+  return h
+    .replace(/```([\s\S]*?)```/g,(m,c)=>'<pre>'+c.trim()+'</pre>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>')
+    .replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>')
+    .replace(/^[-•]\s+/gm,'• ')
+    .replace(/\n{3,}/g,'\n\n')
+    .replace(/\n/g,'<br>');
+}
+function addMsg(kind,text){
+  const div=document.createElement('div');
+  div.className='msg '+kind;
+  div.innerHTML=kind==='user'?esc(text):md(text);
+  $('msgs').appendChild(div);
+  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  return div;
+}
+async function send(){
+  const t=$('inp').value.trim();
+  if(!t||sending)return;
+  $('inp').value='';autoGrow();
+  addMsg('user',t);
+  const think=addMsg('bot think','Sto controllando il gestionale…');
+  sending=true;$('sendBtn').style.opacity=.4;
+  let full='';
+  try{
+    const res=await fetch('/api/chat-stream',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent:'auto',message:t,fresh:freshNext})});
+    freshNext=false;
+    const rd=res.body.getReader(),dec=new TextDecoder();let buf='';
+    let live=null;
+    while(true){
+      const {done,value}=await rd.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      let i;
+      while((i=buf.indexOf('\n\n'))>=0){
+        const chunk=buf.slice(0,i);buf=buf.slice(i+2);
+        const line=chunk.split('\n').find(l=>l.startsWith('data: '));if(!line)continue;
+        let ev;try{ev=JSON.parse(line.slice(6))}catch(e){continue}
+        if(ev.t==='delta'||ev.t==='msg'){
+          full+=(ev.text||'');
+          if(!live){think.remove();live=addMsg('bot','')}
+          live.innerHTML=md(full);
+          window.scrollTo(0,document.body.scrollHeight);
+        }else if(ev.t==='tool'){
+          think.textContent='Sto controllando il gestionale… ('+ev.name+')';
+        }else if(ev.t==='done'){
+          const final=(ev.full||full||'').trim();
+          if(!live){think.remove();live=addMsg('bot','')}
+          live.innerHTML=md(final||(ev.ok?'(nessuna risposta)':'Qualcosa è andato storto, riprova.'));
+          if(voiceOn&&final)speakOut(final);
+        }
+      }
+    }
+    if(!full&&think.parentNode)think.remove();
+  }catch(e){
+    think.className='msg bot';
+    think.innerHTML='Connessione interrotta: riprova. <small>('+esc(String(e.message||e))+')</small>';
+  }
+  sending=false;$('sendBtn').style.opacity=1;
 }
 
-/* ================= VOICE (Web Speech API) ================= */
-function ttsClean(t){
-  return t
-    .replace(/```[\s\S]*?```/g,' codice omesso ')          // blocchi di codice
-    .replace(/https?:\/\/\S+/g,' link ')                    // URL
-    .replace(/\p{Extended_Pictographic}/gu,'')              // emoji e simboli (🟢🔵⚠️…)
-    .replace(/[\u{FE0F}\u{200D}\u{20E3}]/gu,'')             // residui emoji
-    .replace(/^[\s>*-]*\[[ xX]\]\s*/gm,'')                  // checkbox markdown
-    .replace(/^#{1,6}\s*/gm,'')                             // titoli #
-    .replace(/[*_~`#>|]/g,' ')                              // asterischi e markdown
-    .replace(/[\[\]{}()◈☐✔•·—–→⇄«»]/g,' ')                // parentesi, pallini, frecce
-    .replace(/^\s*[-+]\s+/gm,'')                            // trattini elenco
-    .replace(/\.md\b/g,'')                                  // estensioni file
-    .replace(/\s{2,}/g,' ').trim();
-}
-/* Voce: prova Voicebox (neurale, locale) → fallback voce browser */
-let vb={available:false,profiles:[],profile:localStorage.getItem('vbProfile')||''};
-async function detectVoicebox(){
-  try{const r=await fetch('/api/voice-status');const d=await r.json();
-    vb.available=d.available;vb.ttsOnly=!!d.ttsOnly;vb.profiles=d.profiles||[];vb.whisper=d.whisper||'offline';
-  }catch(e){vb.available=false;vb.ttsOnly=false;vb.whisper='offline'}
-  const st=$('vbStatus'),sel=$('vbProfile');
-  if(st)st.innerHTML=vb.available?(vb.ttsOnly?'<span style="color:var(--green)">Voce neurale CLOUD attiva (ElevenLabs)</span>':'<span style="color:var(--green)">Voicebox ATTIVO — voce neurale in uso</span>'):'<span style="color:var(--muted)">Voce neurale non rilevata — uso la voce del browser (in locale: voicebox.sh; sul server: variabile ELEVENLABS_API_KEY)</span>';
-  if(sel){sel.innerHTML='<option value="">(profilo predefinito)</option>'+vb.profiles.map(p=>`<option ${p===vb.profile?'selected':''}>${p}</option>`).join('')}
-}
-/* Sceglie la miglior voce italiana del browser: le "Natural/Online" di Edge e le voci Google
-   sono di gran lunga più realistiche della prima voce di sistema. */
+/* ---------- Voce: lettura risposte (voce del browser) ---------- */
+let voiceOn=localStorage.getItem('voiceOn')!=='0';
+function drawVoice(){$('voiceTgl').classList.toggle('on',voiceOn);$('voiceTgl').textContent=(voiceOn?'🔊':'🔇')+' Voce'}
+function toggleVoice(){voiceOn=!voiceOn;localStorage.setItem('voiceOn',voiceOn?'1':'0');drawVoice();if(!voiceOn)speechSynthesis.cancel()}
 function pickItVoice(){
   const vs=speechSynthesis.getVoices().filter(v=>(v.lang||'').toLowerCase().startsWith('it'));
   return vs.find(v=>/natural|neural|online/i.test(v.name))||vs.find(v=>/google/i.test(v.name))||vs[0];
 }
-function browserSpeak(clean){
+function ttsClean(t){
+  // La voce legge SOLO la frase di sintesi iniziale (prima del primo stacco o della tabella),
+  // in modo naturale: euro senza centesimi (",50" diventa "e cinquanta"), niente simboli.
+  let p=(t.split(/\n\s*\n/)[0]||t);
+  if(p.includes('|'))p=t.split('\n').find(l=>l.trim()&&!l.includes('|'))||'';
+  return p
+    .replace(/(\d[\d.]*),(\d{2})\s*(?:€|euro)/gi,(m,i,c)=>(c==='00')?`${i} euro`:`${i} euro e ${c.replace(/^0/,'')}`)
+    .replace(/€\s*(\d[\d.]*)(?:,(\d{2}))?/g,(m,i,c)=>(!c||c==='00')?`${i} euro`:`${i} euro e ${c.replace(/^0/,'')}`)
+    .replace(/(\d),(\d)/g,'$1 virgola $2')
+    .replace(/%/g,' per cento')
+    .replace(/[*_#`>|]/g,' ')
+    .replace(/https?:\/\/\S+/g,' ')
+    .replace(/\s{2,}/g,' ').trim().slice(0,350);
+}
+function speakOut(t){
+  const c=ttsClean(t);if(!c)return;
   speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(clean);u.lang='it-IT';u.rate=1.03;
+  const u=new SpeechSynthesisUtterance(c);u.lang='it-IT';u.rate=1.02;
   const v=pickItVoice();if(v)u.voice=v;
   speechSynthesis.speak(u);
 }
-async function speak(txt){
-  if(!txt)return;const clean=ttsClean(txt);if(!clean)return;
-  if(vb.available&&vb.ttsOnly){
-    // il server genera l'audio (cloud), lo riproduce il browser
-    try{
-      const b=await fetchTts(clean);
-      const a=new Audio(URL.createObjectURL(b));a.onended=()=>URL.revokeObjectURL(a.src);
-      await a.play();return;
-    }catch(e){vb.available=false}
-  }else if(vb.available){
-    try{
-      const r=await fetch('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:clean,profile:vb.profile||undefined})});
-      if(r.ok)return; // Voicebox sta parlando
-      const d=await r.json().catch(()=>({}));
-      if(d&&d.ttsOnly){vb.ttsOnly=true;return speak(txt)} // il server è in modalità cloud
-    }catch(e){}
-    vb.available=false; // degrada al browser per questa sessione
-  }
-  browserSpeak(clean);
-}
-function speakBrief(){speak('Briefing. '+$('briefText').textContent)}
 
-/* ---- Segnali acustici istantanei (WebAudio, zero latenza) ---- */
-function chime(kind){
-  try{
-    const ctx=chime.ctx||(chime.ctx=new (window.AudioContext||window.webkitAudioContext)());
-    if(ctx.state==='suspended')ctx.resume();
-    const t=ctx.currentTime;
-    const tone=(f,st,d=.12,g=.07)=>{const o=ctx.createOscillator(),v=ctx.createGain();o.frequency.value=f;o.type='sine';
-      v.gain.setValueAtTime(g,t+st);v.gain.exponentialRampToValueAtTime(.001,t+st+d);
-      o.connect(v);v.connect(ctx.destination);o.start(t+st);o.stop(t+st+d+.05)};
-    if(kind==='listen'){tone(660,0);tone(990,.14)}        // ta-din: ti ascolto
-    else if(kind==='think'){tone(990,0);tone(660,.14)}    // din-ta: ricevuto, elaboro
-    else if(kind==='off'){tone(440,0,.22)}                // timeout/spento
-  }catch(e){}
-}
-function setListening(on){
-  document.querySelector('.reactor').classList.toggle('listening',on);
-  $('wakeLabel').textContent=on?'🎧 IN ASCOLTO…':('HEY JARVIS: '+(wake.on?'ON':'OFF'));
-  if(on)$('typeLine').textContent='🎧 Ti ascolto… parla pure.';
-}
-function setThinking(on){
-  document.querySelector('.reactor').classList.toggle('thinking',on);
-  if(on)$('typeLine').textContent='⚙ Elaboro…';
-}
-
-/* ---- Coda vocale sincronizzata: l'audio si genera sul server, il browser lo riproduce
-   e il testo compare NELL'ISTANTE in cui parte il suono. La frase successiva si
-   pre-genera mentre questa viene pronunciata. ---- */
-const sq={q:[],busy:false};
-function fetchTts(text){
-  if(!vb.available)return Promise.reject(new Error('voicebox off'));
-  return fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text,profile:vb.profile||undefined})})
-    .then(r=>{if(!r.ok)throw new Error('tts '+r.status);return r.blob()});
-}
-function speakQueue(text,onStart){
-  const c=ttsClean(text);if(!c)return;
-  const item={c,onStart,gen:null};
-  if(vb.available)item.gen=fetchTts(c).catch(()=>null); // pre-genera subito
-  sq.q.push(item);pumpQueue();
-}
-async function pumpQueue(){
-  if(sq.busy)return;sq.busy=true;
-  while(sq.q.length){
-    const item=sq.q.shift();
-    if(sq.q[0]&&!sq.q[0].gen&&vb.available)sq.q[0].gen=fetchTts(sq.q[0].c).catch(()=>null); // prefetch prossima
-    let blob=null;
-    if(item.gen)blob=await item.gen;
-    if(blob){
-      await new Promise(res=>{
-        const a=new Audio(URL.createObjectURL(blob));
-        a.onplay=()=>{if(item.onStart)try{item.onStart()}catch(e){}};
-        a.onended=()=>{URL.revokeObjectURL(a.src);res()};
-        a.onerror=res;
-        a.play().catch(()=>{if(item.onStart)try{item.onStart()}catch(e){};res()});
-      });
-    }else{
-      // fallback: voce del browser (timing esatto con onstart/onend)
-      await new Promise(res=>{
-        const u=new SpeechSynthesisUtterance(item.c);u.lang='it-IT';u.rate=1.03;
-        const v=pickItVoice();if(v)u.voice=v;
-        u.onstart=()=>{if(item.onStart)try{item.onStart()}catch(e){}};
-        u.onend=res;u.onerror=res;speechSynthesis.speak(u);
-      });
-    }
-  }
-  sq.busy=false;
-}
-/* Dettatura: Whisper locale (Voicebox) se pronto → altrimenti riconoscimento del browser */
-let rec=null,recOn=false,mediaRec=null,mediaChunks=[];
-function micUiOn(btnId){recOn=true;$(btnId).classList.add('rec');$(btnId).textContent='⏹ STOP'}
-function micUiOff(btnId){recOn=false;$(btnId).classList.remove('rec');$(btnId).textContent='🎙 DETTA'}
-async function toggleMic(targetId='captureText',btnId='micBtn'){
-  if(recOn){ if(mediaRec&&mediaRec.state==='recording'){mediaRec.stop()} else if(rec){rec.stop()} return }
-  if(vb.available&&vb.whisper==='ready'){
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      mediaChunks=[];
-      mediaRec=new MediaRecorder(stream,{mimeType:MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':''});
-      mediaRec.ondataavailable=e=>{if(e.data.size)mediaChunks.push(e.data)};
-      mediaRec.onstop=async()=>{
-        micUiOff(btnId);stream.getTracks().forEach(t=>t.stop());
-        const blob=new Blob(mediaChunks,{type:mediaRec.mimeType||'audio/webm'});
-        if(blob.size<1000){toast('Registrazione troppo corta');return}
-        toast('Trascrizione Whisper in corso…');
-        try{
-          const r=await fetch('/api/transcribe',{method:'POST',headers:{'Content-Type':blob.type},body:blob});
-          const d=await r.json();
-          if(d.ok&&d.text){$(targetId).value+=(($(targetId).value&&!$(targetId).value.endsWith(' '))?' ':'')+d.text.trim()+' ';toast('Trascritto ✔ (Whisper)')}
-          else{toast('Whisper non pronto ('+(d.reason||'?')+') — riprovo col browser');toggleMicBrowser(targetId,btnId)}
-        }catch(e){toast('Errore trascrizione — uso il browser');toggleMicBrowser(targetId,btnId)}
-        wakeResume();
-      };
-      wakePause();mediaRec.start();micUiOn(btnId);toast('Registro… premi STOP quando hai finito');
-    }catch(e){toast('Microfono negato o non disponibile');micUiOff(btnId)}
-    return;
-  }
-  if(vb.available&&vb.whisper==='downloading')toast('Whisper in download… intanto uso il riconoscimento del browser');
-  toggleMicBrowser(targetId,btnId);
-}
-/* HEY JARVIS — attivazione vocale a mani libere.
-   Ascolta in continuo; quando sente "hey/ehi jarvis" apre la chat, dice "Dimmi",
-   registra UNA frase e la invia da sola agli agenti. */
-let wakeOn=false,wakeRec=null;
-function wakeToggle(){
+/* ---------- Dettatura (riconoscimento del browser) ---------- */
+let rec=null,recOn=false;
+function mic(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){toast('Attivazione vocale non supportata: usa Chrome/Edge');return}
-  if(wakeOn){
-    wakeOn=false;try{wakeRec&&wakeRec.stop()}catch(e){}
-    $('wakeDot').classList.remove('on');$('wakeLabel').textContent='HEY JARVIS: OFF';
-    toast('Attivazione vocale spenta');return;
-  }
-  wakeOn=true;$('wakeDot').classList.add('on');$('wakeLabel').textContent='HEY JARVIS: ON';
-  toast('In ascolto: di\' "Hey Jarvis" quando ti serve');
-  wakeListen();
-}
-function wakeListen(){
-  if(!wakeOn||recOn)return;
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  wakeRec=new SR();wakeRec.lang='it-IT';wakeRec.continuous=true;wakeRec.interimResults=false;
-  wakeRec.onresult=e=>{
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript.toLowerCase();
-      if(/\b(hey|ehi|ei|hei|he)[,! ]*jarvis\b/.test(t)){ try{wakeRec.stop()}catch(err){}; wakeCommand(); return; }
-    }
-  };
-  wakeRec.onend=()=>{ if(wakeOn&&!recOn) setTimeout(wakeListen,500) };
-  wakeRec.onerror=e=>{
-    if(e.error==='not-allowed'){wakeOn=false;$('wakeDot').classList.remove('on');$('wakeLabel').textContent='HEY JARVIS: OFF';toast('Permesso microfono negato')}
-  };
-  try{wakeRec.start()}catch(e){}
-}
-function wakeCommand(){
-  show('chat');speak('Dimmi');
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  setTimeout(()=>{
-    const r=new SR();r.lang='it-IT';r.continuous=false;r.interimResults=false;
-    micUiOn('chatMicBtn');toast('Ti ascolto…');
-    r.onresult=e=>{ $('chatInput').value=e.results[0][0].transcript.trim() };
-    r.onend=()=>{ micUiOff('chatMicBtn'); if($('chatInput').value.trim())sendChat(); if(wakeOn)setTimeout(wakeListen,800) };
-    r.onerror=()=>{ micUiOff('chatMicBtn'); if(wakeOn)setTimeout(wakeListen,800) };
-    try{r.start()}catch(e){ if(wakeOn)setTimeout(wakeListen,800) }
-  },1300);
-}
-function toggleMicBrowser(targetId,btnId){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){toast('Riconoscimento vocale non supportato: usa Chrome/Edge');return}
+  if(!SR){alert('La dettatura non è supportata da questo browser. Prova con Chrome.');return}
   if(recOn){rec.stop();return}
-  rec=new SR();rec.lang='it-IT';rec.continuous=true;rec.interimResults=false;
-  rec.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)$(targetId).value+=e.results[i][0].transcript+' '};
-  rec.onstart=()=>{wakePause();micUiOn(btnId)};
-  rec.onend=()=>{micUiOff(btnId);wakeResume()};
-  rec.onerror=e=>toast('Errore microfono: '+e.error);
+  rec=new SR();rec.lang='it-IT';rec.interimResults=true;rec.continuous=false;
+  rec.onstart=()=>{recOn=true;$('micBtn').classList.add('rec')};
+  rec.onend=()=>{recOn=false;$('micBtn').classList.remove('rec')};
+  rec.onresult=e=>{
+    let t='';for(const r of e.results)t+=r[0].transcript;
+    $('inp').value=t;autoGrow();
+    if(e.results[e.results.length-1].isFinal&&t.trim())send();
+  };
+  rec.onerror=()=>{recOn=false;$('micBtn').classList.remove('rec')};
   rec.start();
 }
 
-/* ================= "HEY JARVIS" (wake word a mani libere) ================= */
-let wake={on:false,rec:null,awaiting:false,paused:false};
-function updateWakeUI(){
-  $('wakeDot').classList.toggle('on',wake.on);
-  $('wakeLabel').textContent='HEY JARVIS: '+(wake.on?'ON':'OFF');
-}
-/* Il riconoscimento italiano scrive "Jarvis" in mille modi: match elastico */
-const WAKE_RE=/\b(jarvis|jarvis|gervis|jervis|giarvis|garvis|charvis|iarvis|jarbis|gervi|jarvi|travis|parvis)\b/i;
-async function wakeToggle(){
-  if(!wake.on){
-    // chiedi subito il permesso microfono (senza, l'ascolto muore in silenzio)
-    try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop())}
-    catch(e){toast('⚠ Permesso microfono negato: consenti il microfono per questo sito (icona 🔒 nella barra indirizzi)');return}
-  }
-  wake.on=!wake.on;localStorage.setItem('heyJarvis',wake.on?'1':'0');updateWakeUI();
-  if(wake.on){wakeStart();toast('Hey Jarvis attivo 🎤 (vedi cosa sento nella riga sotto il titolo)');speak('Ti ascolto. Chiamami quando vuoi.')}
-  else{wakeStop();toast('Hey Jarvis disattivato');$('typeLine').textContent=''}
-}
-function wakeStart(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){toast('Wake word non supportata: usa Chrome/Edge');wake.on=false;updateWakeUI();return}
-  wakeStop();
-  const r=new SR();r.lang='it-IT';r.continuous=true;r.interimResults=false;
-  r.onresult=e=>{
-    if(wake.paused)return;
-    const t=e.results[e.results.length-1][0].transcript.trim();
-    if(!wake.awaiting)$('typeLine').textContent=('👂 "'+t+'"').slice(0,90); // feedback: cosa ha sentito
-    if(wake.awaiting){
-      clearTimeout(wake.timer);wake.awaiting=false;setListening(false);
-      wakeCommand(t);return;
-    }
-    const m=t.match(WAKE_RE);
-    if(m){
-      const cmd=t.slice(t.toLowerCase().indexOf(m[0].toLowerCase())+m[0].length).replace(/^[\s,.!?]+/,'');
-      if(cmd.length>2)wakeCommand(cmd);
-      else{
-        // niente "Dimmi" parlato: segnale acustico + reattore in modalità ascolto
-        wake.awaiting=true;chime('listen');setListening(true);
-        clearTimeout(wake.timer);
-        wake.timer=setTimeout(()=>{if(wake.awaiting){wake.awaiting=false;setListening(false);chime('off');$('typeLine').textContent=''}},15000);
-      }
-    }
-  };
-  r.onend=()=>{if(wake.on&&!wake.paused&&wake.rec===r){setTimeout(()=>{if(wake.on&&!wake.paused&&wake.rec===r){try{r.start()}catch(e){}}},250)}};
-  r.onerror=e=>{
-    if(e.error==='not-allowed'){wake.on=false;updateWakeUI();toast('Microfono negato: Hey Jarvis spento')}
-    else if(e.error==='network')toast('⚠ Wake word: il riconoscimento del browser richiede internet');
-  };
-  wake.rec=r;
-  try{r.start()}catch(e){}
-}
-function wakeStop(){if(wake.rec){const r=wake.rec;wake.rec=null;try{r.onend=null;r.stop()}catch(e){}}}
-function wakePause(){if(typeof wake==='undefined')return;wake.paused=true;wakeStop()}
-function wakeResume(){if(typeof wake==='undefined')return;wake.paused=false;if(wake.on)wakeStart()}
-async function wakeCommand(cmd){
-  wakePause();
-  chime('think');setThinking(true);
-  toast('🎤 '+cmd);
-  show('chat');$('chatInput').value=cmd;
-  await sendChat(true); // modalità vocale: la voce guida, il testo segue
-  setThinking(false);
-  // riprende l'ascolto quando la coda vocale ha davvero finito di parlare (evita di auto-ascoltarsi)
-  const iv=setInterval(()=>{
-    if(!sq.busy&&!sq.q.length&&!speechSynthesis.speaking){clearInterval(iv);setTimeout(wakeResume,1200)}
-  },400);
-  setTimeout(()=>{clearInterval(iv);if(wake.paused)wakeResume()},120000); // rete di sicurezza
-}
+/* ---------- Input ---------- */
+function autoGrow(){const i=$('inp');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,110)+'px'}
+$('inp').addEventListener('input',autoGrow);
+$('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
 
-/* ================= CHAT AGENTI (via server.js) ================= */
-let chatFresh=true;
-function addMsg(who,txt){
-  const log=$('chatLog');
-  const color=who==='tu'?'var(--amber)':'var(--cyan)';
-  log.innerHTML+=`<div style="margin-bottom:12px"><b style="color:${color};letter-spacing:1px">${who.toUpperCase()}</b>\n${txt.replace(/</g,'&lt;')}</div>`;
-  log.scrollTop=log.scrollHeight;
-}
-function newChat(){chatFresh=true;$('chatLog').innerHTML='';toast('Nuova conversazione avviata')}
-async function sendChat(voiceFirst=false){
-  const msg=$('chatInput').value.trim();if(!msg)return '';
-  $('chatInput').value='';addMsg('tu',msg);
-  $('sendBtn').disabled=true;$('sendBtn').textContent='⏳ IN LAVORAZIONE…';
-  const log=$('chatLog');
-  const div=document.createElement('div');div.style.marginBottom='12px';
-  div.innerHTML='<b style="color:var(--cyan);letter-spacing:1px">JARVIS</b>\n<span class="live"></span><span class="curs" style="color:var(--cyan)">▊</span>';
-  log.appendChild(div);log.scrollTop=log.scrollHeight;
-  const liveEl=div.querySelector('.live'),cur=div.querySelector('.curs');
-  let full='',spokenUpto=0,spokeLive=false;
-  const voiceOn=$('chatTts').checked||voiceFirst;
-  // Modalità vocale: la VOCE guida, il testo compare quando viene pronunciato (stile sottotitoli).
-  const reveal=chunk=>{liveEl.textContent+=chunk;log.scrollTop=log.scrollHeight};
-  const flushSpeech=force=>{
-    if(!voiceOn)return;
-    const pending=full.slice(spokenUpto);
-    if(force){
-      if(pending.trim()&&spokenUpto<1200){
-        const tail=pending.slice(0,1200);
-        voiceFirst?speakQueue(tail,()=>reveal(tail)):speakQueue(tail);
-        spokeLive=true;
-      } else if(voiceFirst&&pending){reveal(pending)}
-      spokenUpto=full.length;return;
-    }
-    if(spokenUpto>1200)return; // le risposte chilometriche non si leggono per intero
-    // prima frase: soglia bassa (parte a parlare prima); poi frasi complete, max ~220 caratteri
-    const re=spokenUpto===0?/^[\s\S]{20,}?[,;.!?…:]["')\]]?(\s|$)/:/^[\s\S]{40,}?[.!?…:]["')\]]?(\s|$)/;
-    const m=pending.match(re);
-    if(m){
-      const chunk=m[0].slice(0,220);
-      voiceFirst?speakQueue(chunk,()=>reveal(chunk)):speakQueue(chunk);
-      spokeLive=true;spokenUpto+=chunk.length;
-    }
-  };
-  // se gli agenti ci mettono più di 8s a produrre testo, Jarvis lo dice invece di stare zitto
-  const filler=voiceOn?setTimeout(()=>{if(!full)speakQueue('Un attimo. Sto controllando.')},8000):null;
-  try{
-    // streaming in tempo reale
-    const r=await fetch('/api/chat-stream',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({agent:$('chatAgent').value,message:msg,fresh:chatFresh})});
-    if(!r.ok||!r.body)throw new Error('no-stream');
-    chatFresh=false;
-    const reader=r.body.getReader(),dec=new TextDecoder();let sbuf='';
-    while(true){
-      const {done,value}=await reader.read();if(done)break;
-      sbuf+=dec.decode(value,{stream:true});
-      let idx;
-      while((idx=sbuf.indexOf('\n\n'))>=0){
-        const chunk=sbuf.slice(0,idx);sbuf=sbuf.slice(idx+2);
-        if(!chunk.startsWith('data: '))continue;
-        let o;try{o=JSON.parse(chunk.slice(6))}catch(e){continue}
-        if(o.t==='delta'){full+=o.text;if(!voiceFirst)liveEl.textContent=full;flushSpeech()}
-        else if(o.t==='msg'){full+=(full?'\n':'')+o.text;if(!voiceFirst)liveEl.textContent=full;flushSpeech()}
-        else if(o.t==='tool'){if(voiceFirst)$('typeLine').textContent='⚙ '+o.name+'…';else liveEl.textContent=full+(full?'\n':'')+'⚙ '+o.name+'…'}
-        else if(o.t==='done'&&!full&&o.full){full=o.full;if(!voiceFirst)liveEl.textContent=full}
-        log.scrollTop=log.scrollHeight;
-      }
-    }
-    if(!full)liveEl.textContent='(risposta vuota)';
-  }catch(e){
-    // fallback: chiamata classica non-streaming
-    try{
-      const r2=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({agent:$('chatAgent').value,message:msg,fresh:chatFresh})});
-      const d=await r2.json();chatFresh=false;full=d.reply||'';
-      liveEl.textContent=full||'(errore)';
-    }catch(e2){liveEl.textContent='⚠ Server non raggiungibile. Avvia Jarvis con avvia-jarvis.bat.'}
-  }
-  if(filler)clearTimeout(filler);
-  cur.remove();log.scrollTop=log.scrollHeight;
-  let spoken='';
-  if(voiceOn&&full){
-    if(spokeLive||voiceFirst)flushSpeech(true); // parla (e in modalità vocale rivela) l'ultimo pezzo
-    else{spoken=full.slice(0,600);speak(spoken)} // nessuno streaming: lettura classica
-  }
-  if(voiceFirst){
-    // aspetta che la voce finisca, poi mostra l'eventuale coda non letta
-    while(sq.busy||sq.q.length){await new Promise(r=>setTimeout(r,300))}
-    if(liveEl.textContent.length<full.length)liveEl.textContent=full;
-    log.scrollTop=log.scrollHeight;
-  }
-  $('sendBtn').disabled=false;$('sendBtn').textContent='📡 INVIA';
-  return spoken||full;
-}
-$('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat()}});
-(async function loadAgentsList(){
-  try{
-    const r=await fetch('/api/agents');const list=await r.json();
-    if(Array.isArray(list)&&list.length)
-      $('chatAgent').innerHTML='<option value="auto">🧠 Automatico (Claude decide)</option>'+list.map(a=>`<option value="${a.id}">${a.id}</option>`).join('');
-  }catch(e){ $('chatAgent').innerHTML+=AGENTS.map(a=>`<option value="${a.id}">${a.id}</option>`).join('') }
-})();
-async function saveCapture(){
-  const txt=$('captureText').value.trim();if(!txt){toast('Nota vuota');return}
-  const d=new Date(),pad=n=>String(n).padStart(2,'0');
-  const date=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  const ts=`${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-  const isIdea=$('captureType').value==='idea';
-  const title=txt.split(/\s+/).slice(0,6).join(' ').replace(/[\\/:*?"<>|#\[\]]/g,'').slice(0,60)||'senza titolo';
-  const name=isIdea
-    ? `70 Idee/Idea - ${title}.md`
-    : `00 Inbox/${date} ${ts} - nota veloce.md`;
-  const body=isIdea
-    ? `---\ntype: idea\nstatus: seme\ntags: [idea]\ncreated: ${date}\ncollegata-a: []\n---\n\n# Idea — ${title}\n\n## L'idea in una frase\n\n${txt}\n\n## Da dove nasce\n\nCatturata al volo da Jarvis il ${date}.\n\n## Primo passo concreto per testarla\n\n- [ ] Far valutare l'idea a un agente (ceo/research)\n`
-    : `---\ntype: nota-veloce\ntags: [inbox]\ncreated: ${date}\n---\n\n${txt}\n`;
-  try{await api('/vault/'+encodeURI(name),{method:'PUT',headers:{'Content-Type':'text/markdown'},body});
-    $('captureText').value='';
-    toast(isIdea?'Idea salvata in 70 Idee ✔':'Nota salvata in 00 Inbox ✔');
-    speak(isIdea?'Idea salvata. Nulla va perso.':'Nota salvata nel vault.')}
-  catch(e){toast('Errore salvataggio: vault offline?')}
-}
-
-/* boot */
-(async()=>{
-  await detectProxy();detectVoicebox();
-  if(proxyOk||cfg.key)loadVault();else testConn(false);
-  if(localStorage.getItem('heyJarvis')==='1'){wake.on=true;updateWakeUI();wakeStart()}
-})();
+/* ---------- Avvio ---------- */
+drawChips();drawVoice();loadDash();ping();
+setInterval(ping,30000);
+setInterval(()=>{if($('view-dash').classList.contains('active'))loadDash()},120000);
+if(speechSynthesis&&speechSynthesis.onvoiceschanged!==undefined)speechSynthesis.onvoiceschanged=()=>{};
 </script>
 </body>
 </html>

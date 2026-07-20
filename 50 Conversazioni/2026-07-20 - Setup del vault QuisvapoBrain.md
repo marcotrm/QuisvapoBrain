@@ -38,6 +38,14 @@ Marco ha chiesto di replicare il sistema "SecondBrainME" (kit `SETUP-KIT-SecondB
 - Repo di deploy pushata su **https://github.com/marcotrm/QuisvapoBrain** (branch `main`, remote già configurato nella cartella di deploy).
 - Scelta dell'utente: gli agenti sul server girano col **token dell'abbonamento Claude** (`CLAUDE_CODE_OAUTH_TOKEN` da `claude setup-token`), NON con API key né Groq (Groq non può eseguire il CLI Claude Code). Guida deploy aggiornata.
 
+## Aggiornamento 3: fix post-primo-test sul server
+
+Il primo test reale ("quanto ha fatturato Marano?") ha rivelato 3 problemi, tutti corretti e rideployati:
+1. **Permessi**: sul server il CLI negava il curl al proxy. Ora il container gira con `JARVIS_SKIP_PERMISSIONS=1` + `IS_SANDBOX=1` (nel Dockerfile) e il server passa `--dangerously-skip-permissions` al posto di `acceptEdits`. In locale nulla cambia.
+2. **Voce sul server**: aggiunto supporto **ElevenLabs** (`ELEVENLABS_API_KEY`, opzionale `ELEVENLABS_VOICE_ID`): il server genera l'audio, il browser lo riproduce (`ttsOnly`). Senza chiave, fallback browser migliorato (preferite voci Natural/Google).
+3. **Niente cronaca**: `buildPrompt` ora impone lo stile "indaga in silenzio, poi SOLO la risposta"; regola aggiunta anche in CLAUDE.md ("Stile delle risposte").
+Inoltre `railway-start.sh` ora aggiorna le parti di sistema (.claude, 90 Sistema, CLAUDE.md, Home.md) nel volume a ogni deploy, preservando le note.
+
 ## Prossimi passi
 
 - [ ] Marco: aprire la cartella SvaPro come vault in Obsidian + plugin (Local REST API porta 27124, Claudian, Homepage → `Home`)

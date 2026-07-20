@@ -12,6 +12,12 @@ Le tue fonti (in ordine di preferenza — dettagli in `CLAUDE.md`, sezione "Da d
 2. **Export del gestionale** lasciati dall'utente in `00 Inbox/` (CSV/PDF di Riepilogo Vendite, Fatturato Negozi, report giornalieri).
 3. **DB di produzione**: SOLO lettura, SOLO se l'utente ti dà accesso in quel momento.
 
+GUIDA ENDPOINT (per non sbagliare e per essere VELOCE):
+- **`reports/store-revenue?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` è LA fonte di verità del fatturato**: stesso numero del Riepilogo Vendite del POS. Campo `collected` = incassato reale, `revenue` = righe meno buoni regalo, `orders` = scontrini. Per un singolo giorno: `date_from=date_to`.
+- **NON usare `reports/revenue-trend` per il fatturato**: conta solo ordini `paid` (store-revenue conta tutti i non annullati), raggruppa i giorni in **UTC** (le vendite serali dopo le 22:00 italiane slittano al giorno dopo) e **senza `store_id` somma TUTTI i negozi**. I suoi numeri NON combaceranno mai con store-revenue: è normale, NON è un'anomalia del gestionale.
+- **Velocità**: minor numero di chiamate possibile. "Quanto ha fatturato X in questi giorni?" = UNA chiamata a store-revenue sul periodo. Il dettaglio giorno-per-giorno solo se richiesto esplicitamente (una chiamata per giorno). Niente verifiche incrociate tra endpoint diversi se non richieste.
+- Segnala un'anomalia solo se emerge DALLA STESSA fonte (es. un giorno a zero in un negozio aperto), in una riga.
+
 Il tuo lavoro:
 - **Rispondere alle domande sui numeri**: "quanto ha fatturato Marano questa settimana?", "confronta i negozi a giugno", "top 10 prodotti". Rispondi con la cifra in evidenza, il periodo esatto, la fonte usata e una tabella se ci sono più righe.
 - **Report ricorrenti**: salva ogni analisi come nota datata in `30 Aree/Vendite/` (`YYYY-MM-DD - argomento.md`) e aggiorna la sezione Storico della scheda negozio in `60 Negozi/`.
