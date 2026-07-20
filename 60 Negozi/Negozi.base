@@ -1,0 +1,48 @@
+filters:
+  and:
+    - 'type == "negozio"'
+    - 'file.ext == "md"'
+
+formulas:
+  stato_icona: 'if(status == "aperto", "🟢 aperto", if(status == "chiuso", "🔴 chiuso", if(status == "in-apertura", "🟡 in apertura", status)))'
+  aggiornato: 'file.mtime.relative()'
+
+properties:
+  file.name:
+    displayName: Negozio
+  formula.stato_icona:
+    displayName: Stato
+  citta:
+    displayName: Città
+  responsabile:
+    displayName: Responsabile
+  formula.aggiornato:
+    displayName: Ultimo aggiornamento
+
+views:
+  - type: table
+    name: "Tutti i negozi"
+    order:
+      - file.name
+      - formula.stato_icona
+      - citta
+      - responsabile
+      - formula.aggiornato
+
+  - type: table
+    name: "Aperti"
+    filters:
+      and:
+        - 'status == "aperto"'
+    order:
+      - file.name
+      - citta
+      - responsabile
+      - formula.aggiornato
+
+  - type: cards
+    name: "Schede"
+    order:
+      - file.name
+      - formula.stato_icona
+      - citta

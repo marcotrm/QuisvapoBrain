@@ -1,0 +1,56 @@
+filters:
+  and:
+    - 'type == "progetto"'
+    - 'file.ext == "md"'
+
+formulas:
+  stato_icona: 'if(status == "in-corso", "🔵 in corso", if(status == "go-live", "🚀 go-live", if(status == "incubazione", "🥚 incubazione", if(status == "non-partito", "⚪ non partito", if(status == "pronto-per-settembre", "📅 settembre", status)))))'
+  aggiornato: 'file.mtime.relative()'
+
+properties:
+  file.name:
+    displayName: Progetto
+  formula.stato_icona:
+    displayName: Stato
+  cliente:
+    displayName: Cliente
+  formula.aggiornato:
+    displayName: Ultimo aggiornamento
+  owner:
+    displayName: Tipo
+
+views:
+  - type: table
+    name: "In corso"
+    filters:
+      or:
+        - 'status == "in-corso"'
+        - 'status == "go-live"'
+        - 'status == "incubazione"'
+    order:
+      - file.name
+      - formula.stato_icona
+      - cliente
+      - formula.aggiornato
+
+  - type: table
+    name: "Tutti"
+    order:
+      - file.name
+      - formula.stato_icona
+      - cliente
+      - owner
+      - formula.aggiornato
+    groupBy:
+      property: status
+      direction: ASC
+
+  - type: table
+    name: "Personali"
+    filters:
+      and:
+        - 'owner == "personale"'
+    order:
+      - file.name
+      - formula.stato_icona
+      - formula.aggiornato

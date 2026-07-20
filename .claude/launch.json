@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jarvis",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["90 Sistema/Jarvis/server.js"],
+      "port": 8766
+    }
+  ]
+}

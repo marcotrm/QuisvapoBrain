@@ -1,0 +1,51 @@
+filters:
+  and:
+    - 'type == "cliente"'
+    - 'file.ext == "md"'
+
+formulas:
+  stato_icona: 'if(status == "attivo", "🟢 attivo", if(status == "in-pausa", "⏸️ in pausa", if(status == "da-qualificare", "🟡 da qualificare", status)))'
+  aggiornato: 'file.mtime.relative()'
+  progetti_collegati: 'file.links.length'
+
+properties:
+  file.name:
+    displayName: Cliente
+  formula.stato_icona:
+    displayName: Stato
+  formula.aggiornato:
+    displayName: Ultimo aggiornamento
+  formula.progetti_collegati:
+    displayName: Collegamenti
+  tags:
+    displayName: Tag
+
+views:
+  - type: table
+    name: "Tutti i clienti"
+    order:
+      - file.name
+      - formula.stato_icona
+      - tags
+      - formula.aggiornato
+      - formula.progetti_collegati
+    groupBy:
+      property: status
+      direction: ASC
+
+  - type: table
+    name: "Attivi"
+    filters:
+      and:
+        - 'status == "attivo"'
+    order:
+      - file.name
+      - tags
+      - formula.aggiornato
+
+  - type: cards
+    name: "Schede"
+    order:
+      - file.name
+      - formula.stato_icona
+      - formula.aggiornato

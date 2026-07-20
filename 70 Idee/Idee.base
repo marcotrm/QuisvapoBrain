@@ -1,0 +1,42 @@
+filters:
+  and:
+    - 'type == "idea"'
+    - 'file.ext == "md"'
+
+formulas:
+  stato_icona: 'if(status == "seme", "🌰 seme", if(status == "da-valutare", "🤔 da valutare", if(status == "in-lavorazione", "🔨 in lavorazione", if(status == "realizzata", "✅ realizzata", if(status == "scartata", "🗑️ scartata", status)))))'
+  nata: 'file.ctime.format("YYYY-MM-DD")'
+
+properties:
+  file.name:
+    displayName: Idea
+  formula.stato_icona:
+    displayName: Stato
+  formula.nata:
+    displayName: Nata il
+  collegata-a:
+    displayName: Collegata a
+
+views:
+  - type: table
+    name: "Vive"
+    filters:
+      not:
+        - 'status == "scartata"'
+        - 'status == "realizzata"'
+    order:
+      - file.name
+      - formula.stato_icona
+      - collegata-a
+      - formula.nata
+    groupBy:
+      property: status
+      direction: ASC
+
+  - type: table
+    name: "Tutte"
+    order:
+      - file.name
+      - formula.stato_icona
+      - collegata-a
+      - formula.nata
