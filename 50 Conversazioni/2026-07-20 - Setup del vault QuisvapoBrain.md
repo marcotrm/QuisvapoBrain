@@ -33,8 +33,15 @@ Marco ha chiesto di replicare il sistema "SecondBrainME" (kit `SETUP-KIT-SecondB
 - Kit deploy in `90 Sistema/Deploy Railway/`: Dockerfile (node + CLI claude), `railway-start.sh` (vault persistente su Volume), `prepara-deploy.ps1` → crea `C:\Users\Utente\Desktop\QuisvapoBrain-deploy` (repo git separato, già committato).
 - Test superati: auth 401/200, proxy inoltra a quisvapo.app, whitelist 403, POST 405.
 
+## Aggiornamento 2: repo online e scelta del motore
+
+- Repo di deploy pushata su **https://github.com/marcotrm/QuisvapoBrain** (branch `main`, remote già configurato nella cartella di deploy).
+- Scelta dell'utente: gli agenti sul server girano col **token dell'abbonamento Claude** (`CLAUDE_CODE_OAUTH_TOKEN` da `claude setup-token`), NON con API key né Groq (Groq non può eseguire il CLI Claude Code). Guida deploy aggiornata.
+
 ## Prossimi passi
 
-- [ ] Marco: installare plugin Obsidian (Local REST API porta dedicata, Claudian, Homepage → `Home`)
-- [ ] Definire l'accesso dati per `data-analyst` (token API o utenza DB read-only)
+- [ ] Marco: aprire la cartella SvaPro come vault in Obsidian + plugin (Local REST API porta 27124, Claudian, Homepage → `Home`)
+- [ ] Marco: `claude setup-token` sul PC → variabile `CLAUDE_CODE_OAUTH_TOKEN` su Railway
+- [ ] Marco: generare `SVAPRO_API_TOKEN` (Sanctum, utente con accesso ai report) → variabile su Railway
+- [ ] Railway: Deploy from GitHub → QuisvapoBrain, Variables (+ `JARVIS_PASSWORD`), Volume su `/data`, Generate Domain
 - [ ] Aggiungere le schede degli altri negozi in `60 Negozi/`

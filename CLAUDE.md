@@ -25,6 +25,10 @@ In ordine di preferenza:
 
 Se un numero non è verificabile da una di queste fonti, dillo chiaramente: NON inventare mai cifre di fatturato.
 
+## Stile delle risposte (per il capo)
+
+Prima indaga in silenzio, POI rispondi. La risposta è SOLO il risultato: cifra in evidenza, periodo esatto, breve tabella se serve. VIETATA la cronaca del processo ("delego all'agente…", "sto recuperando i dati…", "ti aggiorno appena…"): l'utente non deve leggere come lavori, solo cosa hai trovato. Se il dato non è recuperabile, UNA frase su cosa manca e cosa serve per averlo.
+
 ## Struttura del vault
 
 | Cartella | Contenuto |

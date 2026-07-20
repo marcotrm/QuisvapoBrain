@@ -412,24 +412,39 @@ function ttsClean(t){
 let vb={available:false,profiles:[],profile:localStorage.getItem('vbProfile')||''};
 async function detectVoicebox(){
   try{const r=await fetch('/api/voice-status');const d=await r.json();
-    vb.available=d.available;vb.profiles=d.profiles||[];vb.whisper=d.whisper||'offline';
-  }catch(e){vb.available=false;vb.whisper='offline'}
+    vb.available=d.available;vb.ttsOnly=!!d.ttsOnly;vb.profiles=d.profiles||[];vb.whisper=d.whisper||'offline';
+  }catch(e){vb.available=false;vb.ttsOnly=false;vb.whisper='offline'}
   const st=$('vbStatus'),sel=$('vbProfile');
-  if(st)st.innerHTML=vb.available?'<span style="color:var(--green)">Voicebox ATTIVO — voce neurale in uso</span>':'<span style="color:var(--muted)">Voicebox non rilevato — uso la voce del browser (installa da voicebox.sh e tienilo aperto)</span>';
+  if(st)st.innerHTML=vb.available?(vb.ttsOnly?'<span style="color:var(--green)">Voce neurale CLOUD attiva (ElevenLabs)</span>':'<span style="color:var(--green)">Voicebox ATTIVO — voce neurale in uso</span>'):'<span style="color:var(--muted)">Voce neurale non rilevata — uso la voce del browser (in locale: voicebox.sh; sul server: variabile ELEVENLABS_API_KEY)</span>';
   if(sel){sel.innerHTML='<option value="">(profilo predefinito)</option>'+vb.profiles.map(p=>`<option ${p===vb.profile?'selected':''}>${p}</option>`).join('')}
+}
+/* Sceglie la miglior voce italiana del browser: le "Natural/Online" di Edge e le voci Google
+   sono di gran lunga più realistiche della prima voce di sistema. */
+function pickItVoice(){
+  const vs=speechSynthesis.getVoices().filter(v=>(v.lang||'').toLowerCase().startsWith('it'));
+  return vs.find(v=>/natural|neural|online/i.test(v.name))||vs.find(v=>/google/i.test(v.name))||vs[0];
 }
 function browserSpeak(clean){
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(clean);u.lang='it-IT';u.rate=1.03;
-  const v=speechSynthesis.getVoices().find(v=>v.lang.startsWith('it'));if(v)u.voice=v;
+  const v=pickItVoice();if(v)u.voice=v;
   speechSynthesis.speak(u);
 }
 async function speak(txt){
   if(!txt)return;const clean=ttsClean(txt);if(!clean)return;
-  if(vb.available){
+  if(vb.available&&vb.ttsOnly){
+    // il server genera l'audio (cloud), lo riproduce il browser
+    try{
+      const b=await fetchTts(clean);
+      const a=new Audio(URL.createObjectURL(b));a.onended=()=>URL.revokeObjectURL(a.src);
+      await a.play();return;
+    }catch(e){vb.available=false}
+  }else if(vb.available){
     try{
       const r=await fetch('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:clean,profile:vb.profile||undefined})});
       if(r.ok)return; // Voicebox sta parlando
+      const d=await r.json().catch(()=>({}));
+      if(d&&d.ttsOnly){vb.ttsOnly=true;return speak(txt)} // il server è in modalità cloud
     }catch(e){}
     vb.available=false; // degrada al browser per questa sessione
   }
@@ -496,7 +511,7 @@ async function pumpQueue(){
       // fallback: voce del browser (timing esatto con onstart/onend)
       await new Promise(res=>{
         const u=new SpeechSynthesisUtterance(item.c);u.lang='it-IT';u.rate=1.03;
-        const v=speechSynthesis.getVoices().find(v=>v.lang.startsWith('it'));if(v)u.voice=v;
+        const v=pickItVoice();if(v)u.voice=v;
         u.onstart=()=>{if(item.onStart)try{item.onStart()}catch(e){}};
         u.onend=res;u.onerror=res;speechSynthesis.speak(u);
       });

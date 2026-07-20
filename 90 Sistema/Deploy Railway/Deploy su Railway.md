@@ -31,6 +31,8 @@ Obiettivo: il capo apre un **link** (es. `https://quisvapo-brain.up.railway.app`
    | `JARVIS_PASSWORD` | la password che darai al capo |
    | `SVAPRO_API_TOKEN` | token API (Sanctum) di un utente SvaPro con accesso ai report |
    | `SVAPRO_API_URL` | `https://quisvapo.app` (solo se diverso dal default) |
+   | `ELEVENLABS_API_KEY` | *(opzionale)* chiave ElevenLabs (elevenlabs.io → Profile → API Keys) per la **voce neurale** sul server; senza, Jarvis usa la voce del browser |
+   | `ELEVENLABS_VOICE_ID` | *(opzionale)* id di una voce specifica; senza, usa la prima della libreria (i profili si scelgono anche dalla UI) |
 
    (Alternativa pay-per-use: `ANTHROPIC_API_KEY` da console.anthropic.com, eventualmente con `ANTHROPIC_MODEL=claude-haiku-4-5-20251001` per contenere i costi.)
 5. **Volume**: sul servizio → Attach Volume (es. mount `/data`, 1 GB basta). Senza volume funziona lo stesso, ma le note scritte sul server si perdono a ogni redeploy.
@@ -42,7 +44,8 @@ Rilancia `prepara-deploy.ps1` e poi `git -C "C:\Users\Utente\Desktop\QuisvapoBra
 
 ## Note e limiti
 
-- **Voce (Voicebox/Whisper)**: solo in locale — sul server la UI funziona senza voce (gli endpoint rispondono "non disponibile").
+- **Voce**: in locale usa Voicebox; sul server usa **ElevenLabs** se c'è `ELEVENLABS_API_KEY`, altrimenti la voce del browser (su Edge le voci "Natural" sono comunque buone). La dettatura sul server usa il riconoscimento del browser.
+- **Permessi agenti sul server**: il container gira con `JARVIS_SKIP_PERMISSIONS=1` (il CLI non chiede conferme: nessuno potrebbe rispondere). In locale resta la modalità normale.
 - **Obsidian/REST API**: non esiste sul server; il badge "VAULT" della UI può restare offline — le note le scrivono comunque gli agenti sul filesystem.
 - **Costi**: con `CLAUDE_CODE_OAUTH_TOKEN` gli agenti consumano i limiti dell'abbonamento Claude di Marco (se il capo chiede molto, i limiti orari/settimanali sono condivisi). Il token va rigenerato se viene revocato o scade (`claude setup-token`).
 - **Sicurezza**: mai committare token/password nel repo di deploy; vivono solo nelle Variables di Railway. Il proxy gestionale è GET-only con whitelist (`reports/*`, `daily-reports`, `stores`, `dashboard`).

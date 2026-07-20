@@ -14,6 +14,12 @@ const JARVIS_PASSWORD = process.env.JARVIS_PASSWORD || '';
 // Gestionale SvaPro: base URL e token (Sanctum) per il proxy in sola lettura. Il token vive SOLO qui, mai nel vault.
 const SVAPRO_API_URL = (process.env.SVAPRO_API_URL || 'https://quisvapo.app').replace(/\/+$/, '');
 const SVAPRO_API_TOKEN = process.env.SVAPRO_API_TOKEN || '';
+// Sul server (container) i permessi interattivi non esistono: con JARVIS_SKIP_PERMISSIONS=1
+// il CLI gira senza chiedere conferme (serve anche IS_SANDBOX=1 se il processo è root).
+const SKIP_PERMISSIONS = process.env.JARVIS_SKIP_PERMISSIONS === '1';
+// Voce neurale cloud (opzionale, per il server dove Voicebox non esiste): ElevenLabs.
+const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY || '';
+const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID || '';
 const JARVIS_DIR = __dirname;
 const VAULT_ROOT = path.resolve(__dirname, '..', '..');
 const AGENTS_DIR = path.join(VAULT_ROOT, '.claude', 'agents');
@@ -37,12 +43,14 @@ function spawnClaude(cliArgs) {
   return spawn('claude', cliArgs, { cwd: VAULT_ROOT });
 }
 
+function permissionArgs() {
+  return SKIP_PERMISSIONS ? ['--dangerously-skip-permissions'] : ['--permission-mode', 'acceptEdits'];
+}
+
 function runClaude(agent, message, fresh, res) {
-  const args = ['-p', '--output-format', 'text', '--permission-mode', 'acceptEdits'];
+  const args = ['-p', '--output-format', 'text', ...permissionArgs()];
   if (!fresh) args.push('--continue');
-  const prompt = agent && agent !== 'auto'
-    ? `Usa l'agente "${agent}" (subagent definito in .claude/agents/${agent}.md) per questo compito, poi riporta il suo risultato in italiano:\n\n${message}`
-    : message;
+  const prompt = buildPrompt(agent, message);
 
   const child = spawnClaude(args);
   let out = '', err = '';
@@ -136,7 +144,38 @@ async function checkWhisper(autoDownload) {
   return whisperState;
 }
 
+// ---- ElevenLabs: voce neurale cloud (usata quando c'è ELEVENLABS_API_KEY, es. su Railway) ----
+let elVoicesCache = null;
+async function elVoices() {
+  if (elVoicesCache) return elVoicesCache;
+  const r = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': ELEVEN_KEY }, signal: AbortSignal.timeout(8000) });
+  const d = await r.json();
+  elVoicesCache = (d.voices || []).map(v => ({ id: v.voice_id, name: v.name }));
+  return elVoicesCache;
+}
+async function elSpeak(text, profile) {
+  const voices = await elVoices().catch(() => []);
+  let vid = ELEVEN_VOICE;
+  if (profile) { const m = voices.find(v => (v.name || '').toLowerCase() === String(profile).toLowerCase()); if (m) vid = m.id; }
+  if (!vid && voices.length) vid = voices[0].id;
+  if (!vid) throw new Error('nessuna voce ElevenLabs disponibile');
+  const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${vid}?output_format=mp3_44100_128`, {
+    method: 'POST',
+    headers: { 'xi-api-key': ELEVEN_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2' }),
+    signal: AbortSignal.timeout(60000)
+  });
+  if (!r.ok) throw new Error('ElevenLabs ' + r.status + ': ' + (await r.text()).slice(0, 200));
+  return { buf: Buffer.from(await r.arrayBuffer()), type: 'audio/mpeg' };
+}
+
 async function voiceStatus(res) {
+  if (ELEVEN_KEY) {
+    const profiles = (await elVoices().catch(() => [])).map(v => v.name);
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    // ttsOnly: il server genera l'audio ma non può riprodurlo (niente casse): lo suona il browser.
+    return res.end(JSON.stringify({ available: true, ttsOnly: true, profiles, whisper: 'offline' }));
+  }
   try {
     const r = await fetch(VOICEBOX + '/profiles', { signal: AbortSignal.timeout(1500) });
     const d = await r.json();
@@ -189,6 +228,11 @@ function voiceSpeak(req, res) {
   req.on('end', async () => {
     try {
       const { text, profile } = JSON.parse(body || '{}');
+      if (ELEVEN_KEY) {
+        // Il server non ha casse: segnala al frontend di usare /api/tts e riprodurre lui l'audio.
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, ttsOnly: true }));
+      }
       const payload = { text, language: 'it', profile: profile || 'Jarvis' };
       const r = await fetch(VOICEBOX + '/speak', {
         method: 'POST',
@@ -206,10 +250,12 @@ function voiceSpeak(req, res) {
 }
 
 // ---- Chat in STREAMING (SSE): il testo arriva token per token mentre Claude lavora ----
+const STYLE = `STILE DELLA RISPOSTA (obbligatorio): prima indaga in silenzio usando gli strumenti, POI scrivi SOLO la risposta finale in italiano, diretta, con i numeri in evidenza. VIETATO scrivere frasi di processo tipo "delego all'agente", "sto recuperando i dati", "ti aggiorno appena ha finito": l'utente deve leggere solo il risultato. Se un dato non è recuperabile, spiega in UNA frase cosa manca e cosa serve.`;
+
 function buildPrompt(agent, message) {
   return agent && agent !== 'auto'
-    ? `Usa l'agente "${agent}" (subagent definito in .claude/agents/${agent}.md) per questo compito, poi riporta il suo risultato in italiano:\n\n${message}`
-    : message;
+    ? `Usa l'agente "${agent}" (subagent definito in .claude/agents/${agent}.md) per questo compito e riporta il suo risultato.\n${STYLE}\n\nDomanda dell'utente:\n${message}`
+    : `${STYLE}\n\n${message}`;
 }
 
 function chatStream(req, res) {
@@ -221,7 +267,7 @@ function chatStream(req, res) {
     if (!message || !message.trim()) { res.writeHead(400); return res.end(); }
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
     const send = o => res.write('data: ' + JSON.stringify(o) + '\n\n');
-    const args = ['-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', '--permission-mode', 'acceptEdits'];
+    const args = ['-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', ...permissionArgs()];
     if (!fresh) args.push('--continue');
     const child = spawnClaude(args);
     let buf = '', full = '', deltaSeen = false, err = '';
@@ -280,6 +326,11 @@ function ttsRoute(req, res) {
     try {
       const { text, profile } = JSON.parse((body || '{}').replace(/^﻿/, ''));
       if (!text || !text.trim()) throw new Error('testo vuoto');
+      if (ELEVEN_KEY) {
+        const audio = await elSpeak(text, profile);
+        res.writeHead(200, { 'Content-Type': audio.type, 'Cache-Control': 'no-store' });
+        return res.end(audio.buf);
+      }
       const pid = await resolveProfileId(profile);
       if (!pid) throw new Error('nessun profilo vocale');
       const g = await (await fetch(VOICEBOX + '/generate', {
